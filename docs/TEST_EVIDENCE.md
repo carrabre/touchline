@@ -19,6 +19,7 @@
 - Bedrock Nova Lite text invocation: passed before expiry. **This does not verify video analysis.**
 - Dedicated storage/table/IAM setup calls reached access-key creation. A local bootstrap output-path error was fixed. Root session subsequently expired. Runtime credentials and worker are **not installed**.
 - Clip duplicate/overlap and exclusion/budget unit checks: passed.
+- Real local FFmpeg render: three tests passed in 7.238 seconds. Sample output is 22.042 seconds, 5,472,805 bytes, H.264 at 852 × 480 (display aspect ratio preserved) and AAC. Sample source windows: 60–72 seconds and 80–90 seconds, selected manually for render validation, not by the detector. A representative rendered frame was visually inspected; title and original timestamp labels are readable. Audio stream is present; subjective listening has not been certified.
 - Local slow-video timestamp check: passed after correcting output duration when slowing the deep-review video.
 - Local render initially failed because the Mac FFmpeg lacks `drawtext`. Overlays were replaced with generated text PNGs rather than depending on that optional filter.
 
@@ -29,6 +30,16 @@ Local rendering clips, when provided, are manually chosen smoke-test material, *
 AWS CLI root login session expired. Existing browser sign-in renewal required a CAPTCHA. It cannot be completed autonomously. No root credentials were put into the Site or repository. A dedicated unused IAM access key created before the local path error should be revoked once setup resumes. The private web surface explicitly shows media processing offline until its scoped credentials are configured.
 
 The Sites plugin's local helper directory also disappeared from the environment during this session. The build source and native hosting tools remain available; publishing uses a documented native source/version flow with manual source preparation where the helper is unavailable.
+
+## Verified production web checks
+
+- Private deployment succeeded at https://touchline-reels.carrabre.chatgpt.site on October 2, 2026.
+- Sign in with ChatGPT completed with the existing account; live library and upload screens rendered.
+- Anonymous API request: **HTTP 401**. Anonymous request carrying a forged authenticated-user header: **HTTP 401**. This verifies the outer sign-in gate, not all cross-user object ownership scenarios.
+- Selected the full 90:41 source in the actual production file chooser. The app refused to upload because storage/processing credentials were unavailable and displayed the explicit AWS connection error. No source bytes were uploaded and no match job was created.
+- Clicked the production recording control. It displayed the explicit offline recording error before requesting camera/microphone access. This is an unavailable-service check, not a successful recording test.
+- Responsive production upload screen at **390 × 844**: DOM viewport and document widths both **390**, no horizontal overflow. Desktop and mobile screenshots saved in the task's outputs. Temporary viewport override restored.
+- Production pipeline timings and detection quality remain unavailable. There is no production sample reel.
 
 ## Mandatory production matrix — all still outstanding unless specifically recorded below
 
@@ -45,7 +56,7 @@ The Sites plugin's local helper directory also disappeared from the environment 
 | Failed-job retry and saved checkpoint recovery | Implemented; not production tested |
 | Duplicate submissions / render idempotency | Implemented conditional writes; not production tested |
 | Invalid files | Input checks and ingestion rejection implemented; not production tested |
-| Basic access controls | Per-user ownership and private hosting implemented; production verification pending |
+| Basic access controls | Anonymous and spoofed identity rejected (401); cross-user ownership and object URL checks remain untested |
 | Browser recording | Incremental recording implemented; success and interruption paths unverified |
 | Two-hour browser recording | Unverified; UI explains limitations |
 

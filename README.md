@@ -2,7 +2,9 @@
 
 A private soccer match library, resumable uploader, incremental browser recorder, and highlight review studio. The intended production pipeline uses real visual analysis across the full match and a separate durable media worker.
 
-**Current delivery state: incomplete.** The web application builds locally. AWS storage, table and isolated worker permissions were provisioned, but AWS root session renewal reached an interactive CAPTCHA before the worker could be deployed or the web application's storage credentials installed. No full match has passed through production. Do not interpret deployment of the web surface as verification of the processing pipeline.
+Production web URL: https://touchline-reels.carrabre.chatgpt.site
+
+**Current delivery state: incomplete.** The web application builds locally and its owner-private web surface is deployed. Sign-in, responsive layout and offline-service messages were checked in production. AWS storage, table and isolated worker permissions were provisioned, but AWS root session renewal reached an interactive CAPTCHA before the worker could be deployed or the web application's storage credentials installed. No full match has passed through production. Do not interpret deployment of the web surface as verification of the processing pipeline.
 
 ## Use
 
