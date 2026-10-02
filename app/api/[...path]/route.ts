@@ -1,13 +1,13 @@
-import { env } from 'cloudflare:workers';
+import { runtimeConfig, requestOwner } from '@/lib/runtime-config';
 import { db, scan, get, owned, put, s3, signed, parts, xmlValue, escapeXml, type Match, type Event } from '@/lib/aws';
 import { musicChoices } from '@/lib/soundtracks';
 const MAX=16*1024**3, CHUNK=16*1024**2;
 const json=(d:unknown,status=200)=>Response.json(d,{status,headers:{'cache-control':'no-store'}});
 async function handle(req:Request){
  try{
-  const owner=req.headers.get('oai-authenticated-user-id');if(!owner)return json({error:'Sign in to access your matches.'},401);
+  const owner=requestOwner(req);if(!owner)return json({error:'Sign in to access your matches.'},401);
   if(!['GET','HEAD'].includes(req.method)){const origin=req.headers.get('origin');if(origin && origin!==new URL(req.url).origin)return json({error:'Cross-site request rejected.'},403);}
-  const config=env as unknown as Record<string,string>;if(!config.MEDIA_ACCESS_KEY || !config.MEDIA_SECRET_KEY){if(req.method==='GET' && new URL(req.url).pathname==='/api/matches')return json({matches:[],available:false});return json({error:'Media processing is offline. The AWS connection must be restored before uploading.'},503);}
+  const config=runtimeConfig();if(!config.MEDIA_ACCESS_KEY || !config.MEDIA_SECRET_KEY){if(req.method==='GET' && new URL(req.url).pathname==='/api/matches')return json({matches:[],available:false});return json({error:'Media processing is offline. The AWS connection must be restored before uploading.'},503);}
   const path=new URL(req.url).pathname.slice(5).split('/');
   if(path[0]==='sample' && path.length===1 && req.method==='POST'){
    const fixture=await get('validation-auto-goals-20261002');

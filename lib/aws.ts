@@ -1,7 +1,7 @@
 import { AwsClient } from 'aws4fetch';
-import { env } from 'cloudflare:workers';
+import { runtimeConfig } from '@/lib/runtime-config';
 export const REGION = 'us-east-1';
-const config = () => env as unknown as Record<string,string>;
+const config = runtimeConfig;
 export const bucket = () => config().MEDIA_BUCKET;
 export const table = () => config().MATCH_TABLE;
 function aws(){const c=config();if(!c.MEDIA_ACCESS_KEY || !c.MEDIA_SECRET_KEY)throw new Error('Media service is not configured.');return new AwsClient({accessKeyId:c.MEDIA_ACCESS_KEY,secretAccessKey:c.MEDIA_SECRET_KEY,region:REGION,retries:3});}

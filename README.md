@@ -2,13 +2,17 @@
 
 A private soccer match library, resumable uploader, incremental browser recorder, and highlight review studio. The intended production pipeline uses real visual analysis across the full match and a separate durable media worker.
 
-Production web URL: https://touchline-reels.carrabre.chatgpt.site
+Vercel production: https://touchline-two-zeta.vercel.app (requires your Vercel login).
+
+Original Site: https://touchline-reels.carrabre.chatgpt.site
+
+See docs/VERCEL.md for the single-owner Vercel hosting setup.
 
 **Current delivery state: incomplete.** The web app, scoped AWS storage connection and isolated worker are deployed. An actual AWS render/storage/download test passed. The new detector found and rendered all 3 independently audited goals in the full 90:41 test source. Browser file upload, additional footage and 120-minute processing remain unverified; see docs/TEST_EVIDENCE.md.
 
 ## Use
 
-1. Sign in with ChatGPT at the private Site.
+1. Sign in with Vercel on the Vercel deployment, or ChatGPT on the original Site.
 2. Choose New match, name the game, and select a supported video (MP4 recommended, MOV/WebM/MKV accepted). Maximum 16 GB and 120 minutes.
 3. Keep the upload page open until transfer completes. Reselect the identical file to resume an interrupted multipart upload. Closing the page after upload does not cancel the durable job.
 4. Return to the match to review clips. High confidence is a model judgment, not a certified goal. Preview each candidate, include/exclude it, change boundaries in seconds, or add a missed event with a source timestamp.
