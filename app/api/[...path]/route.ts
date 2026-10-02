@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:workers';
-import { db, get, owned, put, s3, signed, parts, xmlValue, escapeXml, type Match, type Event } from '@/lib/aws';
+import { db, scan, get, owned, put, s3, signed, parts, xmlValue, escapeXml, type Match, type Event } from '@/lib/aws';
 const MAX=16*1024**3, CHUNK=16*1024**2;
 const json=(d:unknown,status=200)=>Response.json(d,{status,headers:{'cache-control':'no-store'}});
 async function handle(req:Request){
@@ -10,7 +10,7 @@ async function handle(req:Request){
   const path=new URL(req.url).pathname.slice(5).split('/');
   if(path[0]!=='matches')return json({error:'Not found.'},404);
   if(path.length===1 && req.method==='GET'){
-   const d=await db('Scan',{FilterExpression:'#o = :owner',ExpressionAttributeNames:{'#o':'owner'},ExpressionAttributeValues:{':owner':{S:owner}},Limit:100});
+   const d=await scan({FilterExpression:'#o = :owner',ExpressionAttributeNames:{'#o':'owner'},ExpressionAttributeValues:{':owner':{S:owner}},Limit:100});
    return json({available:true,matches:(d.Items||[]).map((i:Record<string,any>)=>({...JSON.parse(i.doc.S),status:i.stage.S})).sort((a:Match,b:Match)=>b.created-a.created)});
   }
   if(path.length===1 && req.method==='POST'){
@@ -18,7 +18,7 @@ async function handle(req:Request){
    if(!b.title?.trim() || b.title.length>100 || !b.fingerprint || b.fingerprint.length>300 || !/^video\/(mp4|quicktime|webm|x-matroska)$/.test(b.mime)|| !Number.isSafeInteger(b.size)||b.size<0||b.size>MAX)return json({error:'Choose an MP4, MOV, WebM or MKV video under 16 GB.'},400);
    const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(owner+':'+b.fingerprint));const id=Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,32);
    const existing=await get(id);if(existing)return json({match:existing,chunkSize:CHUNK});
-   const d=await db('Scan',{FilterExpression:'#o = :o AND (#s = :u OR #s = :q OR #s = :a OR #s = :r)',ExpressionAttributeNames:{'#o':'owner','#s':'stage'},ExpressionAttributeValues:{':o':{S:owner},':u':{S:'uploading'},':q':{S:'queued'},':a':{S:'analysis'},':r':{S:'rendering'}}});if((d.Items||[]).length>=3)return json({error:'Finish or discard an active upload before starting another (three at a time).'},429);
+   const d=await scan({FilterExpression:'#o = :o AND (#s = :u OR #s = :q OR #s = :a OR #s = :r)',ExpressionAttributeNames:{'#o':'owner','#s':'stage'},ExpressionAttributeValues:{':o':{S:owner},':u':{S:'uploading'},':q':{S:'queued'},':a':{S:'analysis'},':r':{S:'rendering'}}});if((d.Items||[]).length>=3)return json({error:'Finish or discard an active upload before starting another (three at a time).'},429);
    const m:Match={id,owner,title:b.title.trim(),filename:String(b.filename).slice(0,200),mime:b.mime,size:b.size,key:`matches/${owner}/${id}/source`,recording:!!b.recording,created:Date.now(),status:'uploading',events:[],revision:0,length:180,labels:true};
    if(!m.recording){const x=await(await s3(m.key,'?uploads',{method:'POST',headers:{'content-type':m.mime}})).text();m.uploadId=xmlValue(x,'UploadId');if(!m.uploadId)throw new Error('Could not start upload.');}
    try{await put(m,'attribute_not_exists(id)');}catch(e){const saved=await get(id);if(!saved)throw e;if(m.uploadId)await s3(m.key,`?uploadId=${encodeURIComponent(m.uploadId)}`,{method:'DELETE'});return json({match:saved,chunkSize:CHUNK});}
@@ -50,7 +50,7 @@ async function handle(req:Request){
    m.status='queued';m.note='Waiting for the media worker';await put(m,'stage = :s AND revision = :r',{':s':{S:'uploading'},':r':{N:String(m.revision)}});return json({match:m});
   }
   if(action==='retry' && req.method==='POST'){
-   if(m.status!=='failed')return json({error:'Only failed jobs can be retried.'},409);m.status='queued';m.error=undefined;await put(m,'stage = :s AND revision = :r',{':s':{S:'failed'},':r':{N:String(m.revision)}});return json({match:m});
+   if(m.status!=='failed')return json({error:'Only failed jobs can be retried.'},409);m.status='queued';m.error=undefined;m.attempts=0;await put(m,'stage = :s AND revision = :r',{':s':{S:'failed'},':r':{N:String(m.revision)}});return json({match:m});
   }
   if(action==='edit' && req.method==='POST'){
    if(!['ready','needs_review','failed'].includes(m.status))return json({error:'Wait for processing to finish before editing.'},409);

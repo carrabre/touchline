@@ -122,6 +122,7 @@ def process(item,lease):
  m=json.loads(item['doc']['S']);m['status']='ingestion';directory=ROOT/m['id'];directory.mkdir(exist_ok=True);source=directory/'source';started=time.time();metrics=m.get('metrics',{});metrics.setdefault('firstStarted',started);metrics['visionVersion']=VERSION
  try:
   if not source.exists():
+   if shutil.disk_usage(ROOT).free < m['size']*1.15+2*1024**3:raise RuntimeError('The media worker has insufficient temporary disk space. Saved footage is safe; retry after storage is available.')
    if m.get('recording'):
     with source.open('wb') as w:
      for n in range(1,m['parts']+1):

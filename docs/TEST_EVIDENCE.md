@@ -13,8 +13,9 @@
 ## Completed checks
 
 - TypeScript compile: passed.
-- Production web build: passed.
+- Production web build: passed, including the final multipart/state pagination fixes.
 - Python worker syntax: passed.
+- React best-practices review: request/data access is server-side, large video uses file slices rather than full-file buffers, hook subscriptions clean up timers/listeners, controls have accessible names, responsive layout checked.
 - AWS account/region, existing instance availability, SSM and Docker availability: verified before session expiry.
 - Bedrock Nova Lite text invocation: passed before expiry. **This does not verify video analysis.**
 - Dedicated storage/table/IAM setup calls reached access-key creation. A local bootstrap output-path error was fixed. Root session subsequently expired. Runtime credentials and worker are **not installed**.
