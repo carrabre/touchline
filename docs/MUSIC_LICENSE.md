@@ -1,6 +1,6 @@
 # Instrumental soundtrack pool
 
-Touchline chooses Hunted, Legionnaire (Original), or Titan at random for each new reel revision. Regenerating in random mode avoids the preceding track; retrying the same revision keeps its chosen track. Specific tracks can also be selected in the studio. Match audio is retained, with normalized music ducked beneath speech and faded at both ends.
+Touchline chooses Hunted, Legionnaire (Original), or Titan at random for each new reel revision. Regenerating in random mode avoids the preceding track; retrying the same revision keeps its chosen track. Specific tracks can also be selected in the studio. Match audio is retained, with normalized music ducked beneath speech and faded at both ends. The normalized soundtrack gain is 0.64 (increased by 6 dB from the earlier 0.32 mix), with a final limiter to prevent clipping.
 
 All three tracks are by Scott Buckley, released under CC BY 4.0. Official MP3 downloads are bundled in the media worker, rather than fetched from YouTube during rendering. The catalogue records source URLs, YouTube originals, license URLs and SHA-256 checksums. Instrumentation is orchestral; no sung lyrics are used.
 

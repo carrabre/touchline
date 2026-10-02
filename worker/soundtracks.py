@@ -36,7 +36,7 @@ def mix_music(cut, directory, match, duration, run):
  fade = max(0, duration - 2)
  # Normalize each song first; retain field audio and duck music beneath speech.
  graph = (f'[0:a]volume=1,asplit=2[game][side];'
-          f'[1:a]loudnorm=I=-16:TP=-2:LRA=11,volume=0.32,'
+          f'[1:a]loudnorm=I=-16:TP=-2:LRA=11,volume=0.64,'
           f'afade=t=in:d=1,afade=t=out:st={fade}:d=2[music];'
           '[music][side]sidechaincompress=threshold=0.04:ratio=6:attack=20:release=300[duck];'
           '[game][duck]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[a]')
