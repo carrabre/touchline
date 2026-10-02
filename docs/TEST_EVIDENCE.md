@@ -1,6 +1,6 @@
 # Verification ledger
 
-**Definition of done: NOT MET.** No end-to-end production soccer reel exists. This ledger distinguishes completed local checks from blocked production tests.
+**Overall definition of done: NOT MET.** Automatic detection and AWS rendering passed the audited 90:41 goal test. Production browser file upload, broader footage, recording and the 120-minute case remain unverified. This ledger distinguishes each tested path.
 
 ## Assets prepared
 
@@ -86,3 +86,14 @@ To finish: restore authorized AWS access, provision scoped Site credentials, dep
 
 - The corrected AWS reel completed successfully: 101.063672 seconds, 24,064,360 bytes, worker 51.11 seconds (render 48.8). All 3 audited source goals fall within the 3 rendered clip windows; missing goals: 0. Entire downloaded MP4 decoded without errors. Representative output frames at 11, 39 and 76 seconds match the three scoring sequences. This is 3/3 audited inclusion, not 3/3 autonomous recall.
 - Added an authenticated sample action that imports this fixed licensed fixture into the signed-in user's library, with its verified goal evidence. Edits generate that user's own subsequent reels; deleting the sample does not delete the shared fixture.
+
+## Automatic goal detection — Nova 2 correction
+
+- Replaced the failed Nova 1 visual detector with a goal-focused Nova 2 Lite scan and a separate review prompt. All goal candidates receive review; each review covers up to 64 source seconds slowed to half speed, so scout timestamp errors do not cut away the scoring action. New cache namespace prevents reuse of old-model detections.
+- Full 90:41 source scanned in 33 overlapping windows. Scouting ran locally with ephemeral existing AWS authentication and two simultaneous model calls; exact model outputs were saved into the worker's durable checkpoint namespace. No expected goal times, counts or reference clips were supplied to inference. The AWS worker then independently reviewed all 6 candidates and rendered selected goals. This is a real full-source detection test, but not a browser-upload test or a production sequential-scout timing measurement.
+- Result against independent source audit: **3 reference goals, 3 detected goals, 0 missed, 0 extra selected goals**. Review deduplicated the overlapping third-goal candidates and rejected the two late-game false candidates. Detected source seconds: 233.0, 2452.2, 4930.7; audited approximate seconds: 230, 2451, 4929. Maximum difference 3 seconds (matching tolerance 8 seconds). All true scoring moments are inside rendered windows.
+- Automatically generated reel: **105.063672 seconds**, 24,527,107 bytes, 3 goal sequences, despite a 90-second target. Entire MP4 decoded without errors; output scoring frames at approximately 12, 48.8 and 83.3 seconds visually compared with source. Artifact: all-three-goals-automatic.mp4 in parent outputs.
+- Measured model usage: **1,546,212 input / 1,054 output tokens**. Scout batch 358.90 seconds; worker candidate review/checkpoint traversal 60.00 seconds; render 50.77 seconds. Worker continuation 110.78 seconds. Upload, checkpoint transfer and local scouting run separately; no combined end-to-end UI timing is claimed. Billed charge not queried.
+- Eight media tests passed in 7.370 seconds. TypeScript and web build passed. New model invocation is scoped to the existing worker role; no root credentials entered the worker or Site.
+- Authenticated sample library entry uses the automatically detected reel, with its three events independently source-verified. Live browser loaded both source and reel without media errors and played the initial audited sample through its full duration; final automatic reel download/decode verified separately.
+- This is one test match from an elevated school-game camera with commentary/score graphics. It does not prove perfect recall on all future sideline videos or two-hour matches.

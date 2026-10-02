@@ -9,8 +9,9 @@ async function handle(req:Request){
   const config=env as unknown as Record<string,string>;if(!config.MEDIA_ACCESS_KEY || !config.MEDIA_SECRET_KEY){if(req.method==='GET' && new URL(req.url).pathname==='/api/matches')return json({matches:[],available:false});return json({error:'Media processing is offline. The AWS connection must be restored before uploading.'},503);}
   const path=new URL(req.url).pathname.slice(5).split('/');
   if(path[0]==='sample' && path.length===1 && req.method==='POST'){
-   const fixture=await get('validation-all-goals-20261002');
-   if(!fixture || fixture.status!=='ready' || !fixture.reelKey)return json({error:'Sample reel unavailable.'},503);
+   const fixture=await get('validation-auto-goals-20261002');
+   const validation=fixture?.metrics?.goalValidation as {missedGoals:number;extraGoals:number}|undefined;
+   if(!fixture || fixture.status!=='ready' || !fixture.reelKey || validation?.missedGoals!==0 || validation?.extraGoals!==0)return json({error:'Sample reel unavailable.'},503);
    const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(owner+':verified-goals-sample-v1'));
    const id=Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,32);
    const existing=await get(id);if(existing && existing.status!=='discarded')return json({match:existing});

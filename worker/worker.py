@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(messa
 REGION=os.getenv('AWS_DEFAULT_REGION','us-east-1');BUCKET=os.environ['MEDIA_BUCKET'];TABLE=os.environ['MATCH_TABLE'];ROOT=pathlib.Path(os.getenv('WORK_DIR','/data'))
 CONFIG=Config(retries={'max_attempts':5,'mode':'standard'},read_timeout=300,connect_timeout=30)
 s3=boto3.client('s3',region_name=REGION,config=CONFIG);ddb=boto3.client('dynamodb',region_name=REGION,config=CONFIG);model=boto3.client('bedrock-runtime',region_name=REGION,config=CONFIG)
-LITE='us.amazon.nova-lite-v1:0';PRO='us.amazon.nova-pro-v1:0';VERSION='touchline-vision-1';ROOT.mkdir(parents=True,exist_ok=True)
+LITE='us.amazon.nova-2-lite-v1:0';PRO=LITE;VERSION='touchline-goals-2';ROOT.mkdir(parents=True,exist_ok=True)
 class InvalidVideo(Exception):pass
 class LostLease(Exception):pass
 def run(args,timeout=900):
@@ -46,20 +46,27 @@ def load_checkpoint(key):
   if e.response['Error']['Code'] in ['NoSuchKey','404']:return None
   raise
 
-def vision(path,prompt,model_id):
- result=model.converse(modelId=model_id,messages=[{'role':'user','content':[{'video':{'format':'mp4','source':{'bytes':path.read_bytes()}}},{'text':prompt}]}],inferenceConfig={'maxTokens':2200,'temperature':0})
+def vision(path,prompt,model_id,mode="scout"):
+ result=model.converse(modelId=model_id,messages=[{'role':'user','content':[{'video':{'format':'mp4','source':{'bytes':path.read_bytes()}}},{'text':prompt}]}],inferenceConfig={'maxTokens':1200,'temperature':0.2})
  text=''.join(x.get('text','') for x in result['output']['message']['content'])
  starts=[i for token in ('{','[') if (i:=text.find(token))>=0]
  if not starts:raise RuntimeError('Video model returned no structured result; retrying this segment.')
  data,_=json.JSONDecoder().raw_decode(text[min(starts):])
- if model_id==LITE and isinstance(data,list):data={'events':data}
+ if mode=='scout' and isinstance(data,list):data={'events':data}
  if not isinstance(data,dict):raise RuntimeError('Invalid video response; segment will retry.')
- if model_id==LITE and not isinstance(data.get('events'),list):raise RuntimeError('Invalid scout response; segment will retry.')
- if model_id==PRO and not isinstance(data.get('worthwhile'),bool):raise RuntimeError('Invalid review response; candidate will retry.')
+ if mode=='scout' and isinstance(data.get('goals'),list):
+  data={'events':[{'time':e.get('time'),'kind':'goal' if e.get('confirmed') is True else 'possible_goal','confidence':.9 if e.get('confirmed') is True else .55,'evidence':e.get('evidence','')} for e in data['goals'] if isinstance(e,dict)]}
+ if mode=='scout' and not isinstance(data.get('events'),list):raise RuntimeError('Invalid scout response; segment will retry.')
+ if mode=='review' and not isinstance(data.get('worthwhile'),bool):raise RuntimeError('Invalid review response; candidate will retry.')
+ if mode=='review' and data['worthwhile']:
+  try:
+   if not math.isfinite(float(data['time'])) or float(data['time'])<0 or not 0<=float(data['confidence'])<=1 or data.get('kind') not in ['goal','possible_goal']:raise ValueError()
+  except (KeyError,TypeError,ValueError):raise RuntimeError('Review omitted a valid goal timestamp or confidence; candidate will retry.')
+
  return data,result.get('usage',{})
 
-SCOUT='''Analyze this real soccer video visually. It may be amateur sideline footage with distant players. Do not rely on commentary, a scoreboard or replay graphics. Identify only visible goals, keeper saves, close shots, skillful attacking sequences and celebrations tied to action. Ordinary passing, throw-ins, halftime graphics, idle players and camera motion are NOT highlights. Look through the entire video. Return JSON only: {"events":[{"time":SECONDS_FROM_VIDEO_START,"kind":"goal|save|close_chance|impressive_play|possible_goal","confidence":0.0,"evidence":"Specific visible action and outcome"}]}. At most 8 events. Never invent a goal when the ball or outcome is unclear. If ambiguous, use possible_goal with confidence below 0.7. Timestamps are this clip's elapsed seconds, not the scoreboard. Empty events is valid.'''
-DEEP='''Review this soccer sequence visually and independently. The video plays at half speed. Identify the best highlight, if any, using elapsed seconds in THIS slowed video. Ignore any scoreboard time, commentary and replay assumptions. A goal needs observable ball entering the goal plus corroborating celebration/restart. Save needs an observable goalkeeper intervention on a shot. If unclear use possible_goal or close_chance and confidence <=0.65. Return JSON only: {"worthwhile":true|false,"time":SECONDS_FROM_THIS_VIDEO_START,"kind":"goal|save|close_chance|impressive_play|possible_goal","confidence":0.0,"evidence":"Describe only observed action, outcome, and visibility limitations"}. Do not call routine possession a highlight.'''
+SCOUT='''Find actual soccer GOALS that occur during this video. Look through its entire duration. A prior score on the scoreboard is not a new goal. A score change alone is insufficient: locate the attacking sequence, shot and ball entering the net, then corroborating celebration or restart. Do not count saves, misses, routine passing, old scores or replays as a new goal. If the outcome is uncertain, mark confirmed false and explain. Return JSON only: {"goals":[{"time":elapsed_clip_seconds,"confirmed":true|false,"evidence":description_under_40_words}]}. Never use the scoreboard clock for time. Empty goals is valid. Be precise and do not invent events.'''
+DEEP='''Independently inspect this soccer sequence for an actual GOAL. The video is at half speed: use elapsed seconds in this slowed video, never the scoreboard clock. Require observable ball entering the net and corroborating celebration, referee signal or score change. A score already visible at the start is not a new goal. Reject saves, misses, replays and routine play. No audio is supplied. Return JSON only: {"worthwhile":true|false,"time":elapsed_seconds_in_this_slowed_clip,"kind":"goal|possible_goal","confidence":0.0,"evidence":"Observed action and outcome, at most 40 words"}. Use worthwhile false if no goal is seen. Ambiguous outcomes must be possible_goal with confidence below 0.7.'''
 
 def extract(source,out,start,duration,slow=False):
  vf='scale=768:-2,fps=2'+(',setpts=2*PTS' if slow else '')
@@ -163,16 +170,18 @@ def process(item,lease):
    # Every goal candidate gets an independent review; only optional action is capped.
    candidates=review_candidates(candidates)
    for idx,e in enumerate(candidates):
-    start=max(0,e['time']-12);length=min(24,duration-start);ck=f"analysis/{m['id']}/{VERSION}/deep-{int(e['time']*10)}.json";result=load_checkpoint(ck);m['note']=f'Checking candidate {idx+1} of {len(candidates)} at {int(e["time"]//60)}:{int(e["time"]%60):02d}';lease=heartbeat(m,lease,'analysis')
+    start=max(0,e['time']-20);length=min(64,duration-start);ck=f"analysis/{m['id']}/{VERSION}/deep-{int(e['time']*10)}.json";result=load_checkpoint(ck);m['note']=f'Checking candidate {idx+1} of {len(candidates)} at {int(e["time"]//60)}:{int(e["time"]%60):02d}';lease=heartbeat(m,lease,'analysis')
     if not result:
-     clip=directory/'analysis.mp4';extract(source,clip,start,length,True);data,tokens=vision(clip,DEEP,PRO);result={'data':data,'usage':tokens};checkpoint(ck,result)
+     clip=directory/'analysis.mp4';extract(source,clip,start,length,True);data,tokens=vision(clip,DEEP,PRO,mode="review")
+     if data['worthwhile'] and not 0<=float(data['time'])<=length*2:raise RuntimeError('Goal review timestamp is outside its video; retrying candidate.')
+     result={'data':data,'usage':tokens};checkpoint(ck,result)
     for k in usage:usage[k]+=result['usage'].get(k,0)
     data=result['data']
     if not data.get('worthwhile'):continue
     t=start+max(0,min(length,float(data.get('time',24))/2));confidence=max(0,min(1,float(data.get('confidence',.5))));kind=data.get('kind','close_chance')
     if kind not in ['goal','save','close_chance','impressive_play','possible_goal']:continue
     if kind=='goal' and confidence<.85:kind='possible_goal';confidence=min(confidence,.65)
-    event={'id':uuid.uuid5(uuid.NAMESPACE_URL,f'{m["id"]}:{t:.0f}').hex,'time':round(t,1),'start':round(max(0,t-12),1),'end':round(min(duration,t+9),1),'kind':kind,'confidence':confidence,'evidence':str(data.get('evidence',''))[:700],'included':confidence>=.75 and kind!='possible_goal'};events.append(event)
+    event={'id':uuid.uuid5(uuid.NAMESPACE_URL,f'{m["id"]}:{t:.0f}').hex,'time':round(t,1),'start':round(max(0,t-15),1),'end':round(min(duration,t+20),1),'kind':kind,'confidence':confidence,'evidence':str(data.get('evidence',''))[:700],'included':confidence>=.75 and kind!='possible_goal'};events.append(event)
    m['events']=dedup(events);m['analysisComplete']=True;metrics['modelUsage']=usage;metrics['scoutCandidates']=len(all_events);metrics['deepCandidates']=len(candidates);metrics['analysisSeconds']=round(time.time()-started,2);lease=heartbeat(m,lease,'selection')
   clips=choose(m['events'],m['length']);m['note']=f'{len(clips)} sequences selected';lease=heartbeat(m,lease,'selection')
   if not clips:

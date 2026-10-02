@@ -1,0 +1,93 @@
+{
+  "validation": {
+    "referenceGoals": 3,
+    "detectedGoals": 3,
+    "matchedGoals": 3,
+    "missedGoals": 0,
+    "extraGoals": 0,
+    "allGoalsInRenderedWindows": true,
+    "toleranceSeconds": 8,
+    "referenceSourceSeconds": [
+      230,
+      2451,
+      4929
+    ],
+    "detectedSourceSeconds": [
+      233.0,
+      2452.2,
+      4930.7
+    ],
+    "method": "Independent full-source score progression and scoring-sequence audit; reference timestamps were not supplied to inference."
+  },
+  "metrics": {
+    "scoutRunSeconds": 358.90329694747925,
+    "scoutExecution": "All 33 overlapping windows inferred locally using the same production model/prompt; exact outputs saved as durable checkpoints. No reference goals were supplied to inference.",
+    "firstStarted": 1790959239.8056438,
+    "visionVersion": "touchline-goals-2",
+    "modelUsage": {
+      "inputTokens": 1546212,
+      "outputTokens": 1054
+    },
+    "scoutCandidates": 6,
+    "deepCandidates": 6,
+    "analysisSeconds": 60.0,
+    "renderSeconds": 50.77,
+    "lastRunSeconds": 110.78,
+    "completedAt": 1790959350.58463,
+    "renderedClips": [
+      {
+        "id": "8c59922f74815a2983bcd0973613c248",
+        "time": 233.0,
+        "start": 218.0,
+        "end": 253.0,
+        "kind": "goal",
+        "confidence": 0.9,
+        "evidence": "Ball enters net, followed by immediate celebration and score update.",
+        "included": true
+      },
+      {
+        "id": "ca2f4b508c4951da9b698b635a2d0544",
+        "time": 2452.2,
+        "start": 2437.2,
+        "end": 2472.2,
+        "kind": "goal",
+        "confidence": 0.9,
+        "evidence": "Ball enters net, followed by Lex players' celebration and scoreboard update to 1-1.",
+        "included": true
+      },
+      {
+        "id": "533e22d8b7dd5e139f2b4354d369df51",
+        "time": 4930.7,
+        "start": 4915.7,
+        "end": 4950.7,
+        "kind": "goal",
+        "confidence": 0.9,
+        "evidence": "Ball crosses goal line, net moves, Lexington players celebrate, referee signals goal, scoreboard updates to 2-1.",
+        "included": true
+      }
+    ],
+    "outputBytes": 24527107,
+    "goalValidation": {
+      "referenceGoals": 3,
+      "detectedGoals": 3,
+      "matchedGoals": 3,
+      "missedGoals": 0,
+      "extraGoals": 0,
+      "allGoalsInRenderedWindows": true,
+      "toleranceSeconds": 8,
+      "referenceSourceSeconds": [
+        230,
+        2451,
+        4929
+      ],
+      "detectedSourceSeconds": [
+        233.0,
+        2452.2,
+        4930.7
+      ],
+      "method": "Independent full-source score progression and scoring-sequence audit; reference timestamps were not supplied to inference."
+    }
+  },
+  "reelDuration": 105.063672,
+  "reelKey": "matches/test-validation/validation-auto-goals-20261002/reel-r0.mp4"
+}

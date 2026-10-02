@@ -23,6 +23,18 @@ class MediaTests(unittest.TestCase):
    response={'output':{'message':{'content':[{'text':json.dumps([event])}]}},'usage':{}}
    with patch('worker.model.converse',return_value=response):
     self.assertEqual(vision(video,'test',LITE)[0],{'events':[event]})
+ def test_goal_scout_and_review_schemas_on_same_model(self):
+  from unittest.mock import patch
+  with tempfile.TemporaryDirectory() as d:
+   video=pathlib.Path(d)/'clip.mp4';video.write_bytes(b'test')
+   scout={'goals':[{'time':10,'confirmed':True,'evidence':'ball enters net'},{'time':30,'confirmed':False,'evidence':'ball obscured'}]}
+   review={'worthwhile':True,'time':20,'kind':'goal','confidence':.9,'evidence':'net and celebration'}
+   for mode,document in [('scout',scout),('review',review)]:
+    response={'output':{'message':{'content':[{'text':json.dumps(document)}]}},'usage':{}}
+    with patch('worker.model.converse',return_value=response):
+     data,_=vision(video,'test',LITE,mode=mode)
+     if mode=='scout':self.assertEqual([e['kind'] for e in data['events']],['goal','possible_goal'])
+     else:self.assertTrue(data['worthwhile'])
  def test_overlap_and_duplicate_merge(self):
   events=[{'time':30,'start':18,'end':39,'confidence':.9,'included':True,'kind':'goal'}, {'time':45,'start':33,'end':54,'confidence':.8,'included':True,'kind':'save'}, {'time':32,'start':20,'end':41,'confidence':.5,'included':False,'kind':'possible_goal'}]
   self.assertEqual(len(dedup(events)),2);self.assertEqual(choose(events,180)[0]['end'],54);self.assertEqual(len(choose(events,180)),1)
