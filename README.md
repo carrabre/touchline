@@ -4,7 +4,7 @@ A private soccer match library, resumable uploader, incremental browser recorder
 
 Production web URL: https://touchline-reels.carrabre.chatgpt.site
 
-**Current delivery state: incomplete.** The web application builds locally and its owner-private web surface is deployed. Sign-in, responsive layout and offline-service messages were checked in production. AWS storage, table and isolated worker permissions were provisioned, but AWS root session renewal reached an interactive CAPTCHA before the worker could be deployed or the web application's storage credentials installed. No full match has passed through production. Do not interpret deployment of the web surface as verification of the processing pipeline.
+**Current delivery state: incomplete.** The web app, scoped AWS storage connection and isolated worker are deployed. An actual AWS render/storage/download test passed. Full visual detection, browser upload and 120-minute processing remain unverified; see docs/TEST_EVIDENCE.md.
 
 ## Use
 
@@ -14,14 +14,14 @@ Production web URL: https://touchline-reels.carrabre.chatgpt.site
 4. Return to the match to review clips. High confidence is a model judgment, not a certified goal. Preview each candidate, include/exclude it, change boundaries in seconds, or add a missed event with a source timestamp.
 5. Save edits and regenerate, then download the MP4.
 
-Until AWS is connected, the published app explicitly shows **Media processing is offline**, and refuses uploads and recording.
+Processing requires the configured AWS media service.
 
 ## Architecture
 
 - **Web**: React 19, Vinext/Next App Router, TypeScript, Sites/Cloudflare Workers. Owner-private Sign in with ChatGPT gate. Each API request also requires the trusted authenticated user ID; ownership is checked before file or match access. Same-origin mutation checks protect against cross-site submissions.
 - **Storage**: a dedicated private S3 bucket `touchline-media-977099028101-us-east-1`, server-side AES256 encryption, public access blocked. Direct signed multipart uploads use 16 MB slices; the entire video never enters browser memory or a Worker request. Incomplete multipart uploads expire after seven days. Download/preview URLs are bearer capabilities expiring after one hour. Keep these URLs private.
 - **State/queue**: dedicated DynamoDB table `touchline-matches`, on-demand billing. Conditional writes implement file submission idempotency, edit revisions and worker leases. Durable state is server-side. No browser storage is the source of truth.
-- **Worker**: a separate Docker container on the existing AWS instance `i-0f165410a7653c04e`. Planned limits: 2 CPU, 4 GB RAM, 128 processes, one match at a time, no inbound listener or GPU access. Other services are preserved. Compute files are erased after each job; canonical files and analysis checkpoints persist in S3. The container restarts after host reboot.
+- **Worker**: a separate Docker container on the existing AWS instance `i-0f165410a7653c04e`. Limits: 2 CPU, 4 GB RAM, 128 processes, one match at a time, no inbound listener or GPU access. Other services are preserved. Compute files are erased after each job; canonical files and analysis checkpoints persist in S3. The container restarts after host reboot.
 - **Analysis**: Amazon Bedrock Nova Lite inspects overlapping 180-second video windows stepped by 170 seconds, covering the entire source at the model's 1 fps video sampling rate. Nova Pro independently reviews up to 40 candidate sequences at half speed (effective 2 fps in original time). Seconds are transformed back to source timestamps. Duplicate events are suppressed, overlapping clips merged, uncertain goals are candidates, not automatic goals. Checkpoints save each completed model call.
 - **Editing/rendering**: FFmpeg, H.264/YUV420P + AAC, original aspect ratio, CRF20 once for clip editing, stream copy at final assembly. Clean cuts, title and optional source-time labels, original CC0 music, sidechain ducking beneath source audio, fast-start MP4. Short/default/long maximums are 90/180/240 seconds. Low-quality events are not added to fill time.
 

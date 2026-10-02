@@ -15,6 +15,14 @@ class MediaTests(unittest.TestCase):
    with patch('worker.model.converse',return_value=response):
     self.assertEqual(vision(video,'test',LITE)[0],{'events':[]})
 
+ def test_model_bare_event_array(self):
+  from unittest.mock import patch
+  with tempfile.TemporaryDirectory() as d:
+   video=pathlib.Path(d)/'clip.mp4';video.write_bytes(b'test')
+   event={'time':10,'kind':'save','confidence':.8,'evidence':'keeper intervention'}
+   response={'output':{'message':{'content':[{'text':json.dumps([event])}]}},'usage':{}}
+   with patch('worker.model.converse',return_value=response):
+    self.assertEqual(vision(video,'test',LITE)[0],{'events':[event]})
  def test_overlap_and_duplicate_merge(self):
   events=[{'time':30,'start':18,'end':39,'confidence':.9,'included':True,'kind':'goal'}, {'time':45,'start':33,'end':54,'confidence':.8,'included':True,'kind':'save'}, {'time':32,'start':20,'end':41,'confidence':.5,'included':False,'kind':'possible_goal'}]
   self.assertEqual(len(dedup(events)),2);self.assertEqual(choose(events,180)[0]['end'],54);self.assertEqual(len(choose(events,180)),1)

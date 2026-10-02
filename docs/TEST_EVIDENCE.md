@@ -73,3 +73,5 @@ To finish: restore authorized AWS access, provision scoped Site credentials, dep
 - 120-minute fixture and full browser recording remain unverified.
 
 - The first real video-analysis response included trailing JSON commentary, causing the strict parser to fail. Fixed parsing to read the first structured object and added a regression test. All four media tests passed in 7.242 seconds; the updated worker was installed and the test fixture requeued. Detection quality is still pending.
+
+- Raw scout response used a bare event array instead of the requested wrapper. The parser now accepts both schemas, with regression coverage. The initial scout output also proposed implausible adjacent goals, so autonomous detection accuracy is expressly NOT certified; independent deep review and source inspection are required.
