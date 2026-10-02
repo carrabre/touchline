@@ -4,9 +4,17 @@ sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/'worker'))
 os.environ.setdefault('MEDIA_BUCKET','local-test-only');os.environ.setdefault('MATCH_TABLE','local-test-only');os.environ.setdefault('AWS_EC2_METADATA_DISABLED','true');os.environ.setdefault('AWS_DEFAULT_REGION','us-east-1');os.environ.setdefault('WORK_DIR',tempfile.mkdtemp())
 # Instantiating clients does not make requests. Dummy credentials isolate the local tests.
 os.environ['AWS_ACCESS_KEY_ID']='local-only';os.environ['AWS_SECRET_ACCESS_KEY']='local-only'
-from worker import choose,dedup,extract,probe,InvalidVideo,render
+from worker import choose,dedup,extract,probe,InvalidVideo,render,vision,LITE
 from music import compose
 class MediaTests(unittest.TestCase):
+ def test_model_json_with_trailing_commentary(self):
+  from unittest.mock import patch
+  with tempfile.TemporaryDirectory() as d:
+   video=pathlib.Path(d)/'clip.mp4';video.write_bytes(b'test')
+   response={'output':{'message':{'content':[{'text':'```json\n{"events": []}\n```\nNotes: {"visibility":"low"}'}]}},'usage':{}}
+   with patch('worker.model.converse',return_value=response):
+    self.assertEqual(vision(video,'test',LITE)[0],{'events':[]})
+
  def test_overlap_and_duplicate_merge(self):
   events=[{'time':30,'start':18,'end':39,'confidence':.9,'included':True,'kind':'goal'}, {'time':45,'start':33,'end':54,'confidence':.8,'included':True,'kind':'save'}, {'time':32,'start':20,'end':41,'confidence':.5,'included':False,'kind':'possible_goal'}]
   self.assertEqual(len(dedup(events)),2);self.assertEqual(choose(events,180)[0]['end'],54);self.assertEqual(len(choose(events,180)),1)

@@ -50,7 +50,7 @@ def vision(path,prompt,model_id):
  result=model.converse(modelId=model_id,messages=[{'role':'user','content':[{'video':{'format':'mp4','source':{'bytes':path.read_bytes()}}},{'text':prompt}]}],inferenceConfig={'maxTokens':2200,'temperature':0})
  text=''.join(x.get('text','') for x in result['output']['message']['content']);a=text.find('{');b=text.rfind('}')
  if a<0 or b<a:raise RuntimeError('Video model returned no structured result; retrying this segment.')
- data=json.loads(text[a:b+1]);
+ data,_=json.JSONDecoder().raw_decode(text[a:]);
  if model_id==LITE and not isinstance(data.get('events'),list):raise RuntimeError('Invalid scout response; segment will retry.')
  if model_id==PRO and not isinstance(data.get('worthwhile'),bool):raise RuntimeError('Invalid review response; candidate will retry.')
  return data,result.get('usage',{})
