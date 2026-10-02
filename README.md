@@ -23,7 +23,7 @@ Processing requires the configured AWS media service.
 - **State/queue**: dedicated DynamoDB table `touchline-matches`, on-demand billing. Conditional writes implement file submission idempotency, edit revisions and worker leases. Durable state is server-side. No browser storage is the source of truth.
 - **Worker**: a separate Docker container on the existing AWS instance `i-0f165410a7653c04e`. Limits: 2 CPU, 4 GB RAM, 128 processes, one match at a time, no inbound listener or GPU access. Other services are preserved. Compute files are erased after each job; canonical files and analysis checkpoints persist in S3. The container restarts after host reboot.
 - **Analysis**: goal-focused Amazon Nova 2 Lite inspects overlapping 180-second windows stepped by 170 seconds across the entire source. Every goal candidate receives a separate review with a different prompt in a 64-second neighborhood slowed to half speed (effective 2 fps). Seconds transform back to source time; duplicate reviews are merged. All included goals survive the reel duration target. A 90:41 test matched all three independently audited source goals; broader footage and two-hour processing remain unverified.
-- **Editing/rendering**: FFmpeg, H.264/YUV420P + AAC, original aspect ratio, CRF20 once for clip editing, stream copy at final assembly. Clean cuts, title and optional source-time labels, original CC0 music, sidechain ducking beneath source audio, fast-start MP4. Short/default/long targets are 90/180/240 seconds; included goals can exceed the target so no goal is omitted. Low-quality events are not added to fill time.
+- **Editing/rendering**: FFmpeg, H.264/YUV420P + AAC, original aspect ratio, CRF20 once for clip editing, stream copy at final assembly. Clean cuts, title and optional source-time labels, licensed instrumental music, sidechain ducking beneath source audio, fast-start MP4. Short/default/long targets are 90/180/240 seconds; included goals can exceed the target so no goal is omitted. Low-quality events are not added to fill time.
 
 Convex was not used: the authorized AWS account already supports private large-file storage, atomic durable state, video inference and existing persistent compute. Keeping these together avoids another identity/storage bridge.
 
@@ -65,3 +65,7 @@ After an authorized AWS session is available:
 - A single existing host is a single point of compute availability. Queued/checkpointed work survives a host outage, but waits for recovery. Automatic analysis is visual only at present; game audio is retained and mixed but is not currently an analysis signal.
 
 See `docs/TEST_EVIDENCE.md`, `docs/COSTS.md`, and `docs/MUSIC_LICENSE.md` for evidence and assumptions.
+
+## Soundtracks
+
+New reels randomly choose Hunted, Legionnaire (Original), or Titan by Scott Buckley. Choose a specific song in the studio, or regenerate in random mode for a different track. Download the music credits alongside the video and include them when publishing. See docs/MUSIC_LICENSE.md.

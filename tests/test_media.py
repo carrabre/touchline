@@ -6,7 +6,19 @@ os.environ.setdefault('MEDIA_BUCKET','local-test-only');os.environ.setdefault('M
 os.environ['AWS_ACCESS_KEY_ID']='local-only';os.environ['AWS_SECRET_ACCESS_KEY']='local-only'
 from worker import choose,dedup,extract,probe,InvalidVideo,render,vision,LITE,review_candidates
 from music import compose
+from soundtracks import select_music,TRACKS
 class MediaTests(unittest.TestCase):
+ def test_music_retry_and_regeneration(self):
+  m={'revision':0,'music':'random'}
+  first,_=select_music(m)
+  self.assertEqual(select_music(m)[0]['id'],first['id'])
+  m['revision']=1
+  self.assertNotEqual(select_music(m)[0]['id'],first['id'])
+  for track in TRACKS:
+   m['revision']+=1;m['music']=track['id']
+   self.assertEqual(select_music(m)[0]['id'],track['id'])
+   self.assertIn('CC-BY 4.0',m['renderMusic']['credits'])
+
  def test_model_json_with_trailing_commentary(self):
   from unittest.mock import patch
   with tempfile.TemporaryDirectory() as d:

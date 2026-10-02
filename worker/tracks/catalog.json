@@ -1,0 +1,47 @@
+[
+  {
+    "id": "hunted",
+    "title": "Hunted",
+    "artist": "Scott Buckley",
+    "youtube": "https://www.youtube.com/watch?v=W_Q9x60xLEg",
+    "source": "https://www.scottbuckley.com.au/library/hunted/",
+    "download": "https://www.scottbuckley.com.au/wp-content/audio/sb_hunted.mp3",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "file": "hunted.mp3",
+    "sha256": "899d26ad271f80df82468f4ca35dd1ad11b48ff191fd288ed7dba2d8fe32db03",
+    "start": 0,
+    "mood": "Fast action",
+    "instrumental": true
+  },
+  {
+    "id": "legionnaire",
+    "title": "Legionnaire (Original)",
+    "artist": "Scott Buckley",
+    "youtube": "https://www.youtube.com/watch?v=7uIYYEM45b4",
+    "source": "https://www.scottbuckley.com.au/library/legionnaire/",
+    "download": "https://www.scottbuckley.com.au/wp-content/audio/sb_legionnaire.mp3",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "file": "legionnaire.mp3",
+    "sha256": "49230c850b0d3a278aee2871ca684cf4bc87bf4dd1ecc8f453f425bff2dce27c",
+    "start": 12,
+    "mood": "Big drums",
+    "instrumental": true
+  },
+  {
+    "id": "titan",
+    "title": "Titan",
+    "artist": "Scott Buckley",
+    "youtube": "https://www.youtube.com/watch?v=vtu8f2dKriY",
+    "source": "https://www.scottbuckley.com.au/library/titan/",
+    "download": "https://www.scottbuckley.com.au/library/wp-content/uploads/2018/06/sb_titan.mp3",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "file": "titan.mp3",
+    "sha256": "fb921a09cc6181228b14945c7a6b90b50a83f4f38a37644a383bf7c70ea83729",
+    "start": 35,
+    "mood": "Triumphant",
+    "instrumental": true
+  }
+]

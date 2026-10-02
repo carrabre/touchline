@@ -3,7 +3,7 @@ import os,json,time,uuid,subprocess,math,pathlib,shutil,logging,tempfile
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from music import compose
+from soundtracks import select_music,mix_music
 from PIL import Image,ImageDraw,ImageFont
 logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s')
 REGION=os.getenv('AWS_DEFAULT_REGION','us-east-1');BUCKET=os.environ['MEDIA_BUCKET'];TABLE=os.environ['MATCH_TABLE'];ROOT=pathlib.Path(os.getenv('WORK_DIR','/data'))
@@ -126,10 +126,7 @@ def render(source,directory,m,clips):
   run(args,900);clipfiles.append(out);offset+=length
  playlist=directory/'clips.txt';playlist.write_text(''.join(f"file '{x}'\n" for x in clipfiles));cut=directory/'cut.mp4'
  run(['ffmpeg','-nostdin','-v','error','-f','concat','-safe','0','-i',str(playlist),'-c','copy','-y',str(cut)],300)
- music=directory/'music.wav';compose(music,32);final=directory/'reel.mp4';fade=max(0,offset-2)
- # Music sits underneath source audio and ducks further when players/commentators speak.
- filtergraph=f'[0:a]volume=1,asplit=2[game][side];[1:a]volume=0.22,afade=t=in:d=1,afade=t=out:st={fade}:d=2[music];[music][side]sidechaincompress=threshold=0.04:ratio=6:attack=20:release=300[duck];[game][duck]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[a]'
- run(['ffmpeg','-nostdin','-v','error','-i',str(cut),'-stream_loop','-1','-i',str(music),'-filter_complex',filtergraph,'-map','0:v:0','-map','[a]','-c:v','copy','-c:a','aac','-b:a','192k','-t',str(offset),'-movflags','+faststart','-y',str(final)],300)
+ final=mix_music(cut,directory,m,offset,run)
  outinfo,outduration,_=probe(final)
  if abs(outduration-offset)>1:raise RuntimeError('Rendered duration failed validation.')
  return final,outduration,clips
@@ -186,8 +183,8 @@ def process(item,lease):
   clips=choose(m['events'],m['length']);m['note']=f'{len(clips)} sequences selected';lease=heartbeat(m,lease,'selection')
   if not clips:
    m['note']='No high-confidence clips selected. Review candidates or add a moment.';m['error']=None;lease=heartbeat(m,lease,'needs_review');return
-  m['note']='Cutting clips and mixing music';lease=heartbeat(m,lease,'rendering');render_start=time.time();final,output_duration,selected=render(source,directory,m,clips)
-  key=f"matches/{m['owner']}/{m['id']}/reel-r{m['revision']}.mp4";s3.upload_file(str(final),BUCKET,key,ExtraArgs={'ContentType':'video/mp4','ContentDisposition':'attachment; filename="touchline-reel.mp4"'});m['reelKey']=key;m['reelDuration']=output_duration;metrics['renderSeconds']=round(time.time()-render_start,2);metrics['lastRunSeconds']=round(time.time()-started,2);metrics['completedAt']=time.time();metrics['renderedClips']=selected;metrics['outputBytes']=final.stat().st_size;m['metrics']=metrics;m['error']=None;m['note']='Your reel is ready.';m['attempts']=0;lease=heartbeat(m,lease,'ready');logging.info('Completed %s: source=%.2fs reel=%.2fs',m['id'],duration,output_duration)
+  select_music(m);m['note']='Cutting clips and mixing music';lease=heartbeat(m,lease,'rendering');render_start=time.time();final,output_duration,selected=render(source,directory,m,clips)
+  key=f"matches/{m['owner']}/{m['id']}/reel-r{m['revision']}.mp4";s3.upload_file(str(final),BUCKET,key,ExtraArgs={'ContentType':'video/mp4','ContentDisposition':'attachment; filename="touchline-reel.mp4"'});s3.upload_file(str(directory/'music-credits.txt'),BUCKET,key+'.credits.txt',ExtraArgs={'ContentType':'text/plain'});m['reelKey']=key;m['reelDuration']=output_duration;metrics['renderSeconds']=round(time.time()-render_start,2);metrics['lastRunSeconds']=round(time.time()-started,2);metrics['completedAt']=time.time();metrics['renderedClips']=selected;metrics['outputBytes']=final.stat().st_size;m['metrics']=metrics;m['error']=None;m['note']='Your reel is ready.';m['attempts']=0;lease=heartbeat(m,lease,'ready');logging.info('Completed %s: source=%.2fs reel=%.2fs',m['id'],duration,output_duration)
  except LostLease:logging.warning('Lease lost for %s; another worker owns it.',m['id'])
  except Exception as e:
   logging.exception('Failed %s',m['id']);m['attempts']=m.get('attempts',0)+1;m['error']=str(e)[:1600];m['note']='Saved analysis will be reused when retried.'

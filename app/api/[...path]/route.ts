@@ -1,5 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { db, scan, get, owned, put, s3, signed, parts, xmlValue, escapeXml, type Match, type Event } from '@/lib/aws';
+import { musicChoices } from '@/lib/soundtracks';
 const MAX=16*1024**3, CHUNK=16*1024**2;
 const json=(d:unknown,status=200)=>Response.json(d,{status,headers:{'cache-control':'no-store'}});
 async function handle(req:Request){
@@ -36,6 +37,7 @@ async function handle(req:Request){
    return json({match:m,chunkSize:CHUNK});
   }
   const m=await owned(path[1],owner),action=path[2];
+  if(action==='credits' && req.method==='GET'){if(!m.renderMusic?.credits)return json({error:'Music credits are available after rendering.'},404);return new Response(m.renderMusic.credits,{headers:{'content-type':'text/plain; charset=utf-8','content-disposition':'attachment; filename="touchline-music-credits.txt"','cache-control':'no-store'}});}
   if(!action && req.method==='GET')return json({match:m,sourceUrl:m.status!=='uploading'?await signed(m.key):null,reelUrl:m.reelKey?await signed(m.reelKey,'GET','?response-content-disposition=attachment%3B%20filename%3D%22touchline-reel.mp4%22'):null});
   if(action==='parts' && req.method==='GET')return json({parts:m.recording?Array.from({length:m.parts||0},(_,i)=>({number:i+1})):await parts(m)});
   if(action==='part' && req.method==='POST'){
@@ -65,10 +67,10 @@ async function handle(req:Request){
   }
   if(action==='edit' && req.method==='POST'){
    if(!['ready','needs_review','failed'].includes(m.status))return json({error:'Wait for processing to finish before editing.'},409);
-   const b=await req.json() as any;if(b.revision!==m.revision)return json({error:'This match changed. Refresh before saving.'},409);
+   const b=await req.json() as any;if(b.music!==undefined && !musicChoices.has(b.music))return json({error:'Choose a listed instrumental or Random.'},400);if(b.revision!==m.revision)return json({error:'This match changed. Refresh before saving.'},409);
    if(!Array.isArray(b.events)||b.events.length>100)return json({error:'Too many highlights.'},400);
    const ids=new Set<string>();for(const e of b.events as Event[]){if(typeof e.id!=='string'||ids.has(e.id)||!Number.isFinite(e.start)||!Number.isFinite(e.end)||!Number.isFinite(e.time)||e.start<0||e.end>m.duration!||e.end<=e.start||e.end-e.start>90||e.time<e.start||e.time>e.end||typeof e.included!=='boolean')return json({error:'Each clip must be 1–90 seconds within the source, with its event inside its boundaries.'},400);ids.add(e.id);}
-   m.events=b.events.map((e:Event)=>{const original=m.events.find(x=>x.id===e.id);return {...(original||{id:e.id,time:e.time,kind:'manual',manual:true,confidence:1,evidence:'Added by you'}),start:e.start,end:e.end,included:e.included};});m.length=[90,180,240].includes(b.length)?b.length:180;m.labels=!!b.labels;m.revision++;m.status='queued';m.note='Your edits are saved. Waiting to render.';
+   m.events=b.events.map((e:Event)=>{const original=m.events.find(x=>x.id===e.id);return {...(original||{id:e.id,time:e.time,kind:'manual',manual:true,confidence:1,evidence:'Added by you'}),start:e.start,end:e.end,included:e.included};});m.length=[90,180,240].includes(b.length)?b.length:180;m.labels=!!b.labels;m.music=b.music||'random';m.revision++;m.status='queued';m.note='Your edits are saved. Waiting to render.';
    await put(m,'revision = :r AND (stage = :a OR stage = :b OR stage = :c)',{':r':{N:String(b.revision)},':a':{S:'ready'},':b':{S:'needs_review'},':c':{S:'failed'}});return json({match:m});
   }
   if(req.method==='DELETE' && !action){if(!['uploading','ready','needs_review','failed'].includes(m.status))return json({error:'Processing is in progress.'},409);if(m.uploadId&&m.status==='uploading')await s3(m.key,`?uploadId=${encodeURIComponent(m.uploadId)}`,{method:'DELETE'});m.status='discarded';await put(m);return json({ok:true});}
