@@ -73,11 +73,17 @@ def dedup(events):
   else:out.append(e)
  return out
 
+def review_candidates(events,other_limit=40):
+ ordered=sorted(events,key=lambda e:(0 if e['kind'] in ['goal','possible_goal'] else 1,-e['confidence']))
+ goals=[e for e in ordered if e['kind'] in ['goal','possible_goal']]
+ others=[e for e in ordered if e['kind'] not in ['goal','possible_goal']]
+ return goals+others[:other_limit]
+
 def choose(events,target):
  selected=[];total=0
  for e in sorted((x for x in events if x['included']),key=lambda x:(0 if x.get('manual') else 1,{'goal':0,'save':1,'close_chance':2,'impressive_play':3,'possible_goal':4}.get(x['kind'],3),-x['confidence'])):
   length=e['end']-e['start']
-  if total+length<=target or not selected:selected.append(dict(e));total+=length
+  if e['kind']=='goal' or total+length<=target or not selected:selected.append(dict(e));total+=length
  selected.sort(key=lambda e:e['start']);merged=[]
  for e in selected:
   if merged and e['start']<=merged[-1]['end']+.5:merged[-1]['end']=max(merged[-1]['end'],e['end'])
@@ -154,8 +160,8 @@ def process(item,lease):
      all_events.append({'time':round(start+t,1),'kind':e['kind'],'confidence':c,'evidence':str(e.get('evidence',''))[:700]})
     coverage=max(coverage,min(duration,start+actual));m['analyzed']=coverage;lease=heartbeat(m,lease,'analysis')
    candidates=dedup(all_events);events=[]
-   # Bound cost and review complexity while always scouting the ENTIRE source.
-   candidates=sorted(candidates,key=lambda e:(0 if e['kind'] in ['goal','possible_goal'] else 1,-e['confidence']))[:40]
+   # Every goal candidate gets an independent review; only optional action is capped.
+   candidates=review_candidates(candidates)
    for idx,e in enumerate(candidates):
     start=max(0,e['time']-12);length=min(24,duration-start);ck=f"analysis/{m['id']}/{VERSION}/deep-{int(e['time']*10)}.json";result=load_checkpoint(ck);m['note']=f'Checking candidate {idx+1} of {len(candidates)} at {int(e["time"]//60)}:{int(e["time"]%60):02d}';lease=heartbeat(m,lease,'analysis')
     if not result:

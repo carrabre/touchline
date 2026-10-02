@@ -1,0 +1,56 @@
+{
+  "asset": "BHS Varsity Boys Soccer: Marauders vs Lexington 10/18/21",
+  "duration": 5441.387,
+  "finalScore": "Belmont 1\u20132 Lexington",
+  "expectedGoals": 3,
+  "verifiedGoals": [
+    {
+      "id": "verified-goal-1",
+      "time": 230,
+      "start": 219,
+      "end": 245,
+      "kind": "goal",
+      "confidence": 1,
+      "included": true,
+      "manual": true,
+      "evidence": "Source-audited Belmont goal: shot/net action, ensuing celebration and score update to 1\u20130. Timestamp approximate to nearest second."
+    },
+    {
+      "id": "verified-goal-2",
+      "time": 2451,
+      "start": 2438,
+      "end": 2474,
+      "kind": "goal",
+      "confidence": 1,
+      "included": true,
+      "manual": true,
+      "evidence": "Source-audited Lexington goal: shot/net action, ensuing celebration and score update to 1\u20131. Timestamp approximate to nearest second."
+    },
+    {
+      "id": "verified-goal-3",
+      "time": 4929,
+      "start": 4915,
+      "end": 4954,
+      "kind": "goal",
+      "confidence": 1,
+      "included": true,
+      "manual": true,
+      "evidence": "Source-audited Lexington goal: shot/net action, ensuing celebration and score update to 1\u20132. Timestamp approximate to nearest second."
+    }
+  ],
+  "method": "Full-length score progression inspection at 30-second intervals, then consecutive source frames around each scoring transition. Human source audit; not an autonomous-model success.",
+  "reelWindows": [
+    [
+      219,
+      245
+    ],
+    [
+      2438,
+      2474
+    ],
+    [
+      4915,
+      4954
+    ]
+  ]
+}

@@ -4,7 +4,7 @@ sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/'worker'))
 os.environ.setdefault('MEDIA_BUCKET','local-test-only');os.environ.setdefault('MATCH_TABLE','local-test-only');os.environ.setdefault('AWS_EC2_METADATA_DISABLED','true');os.environ.setdefault('AWS_DEFAULT_REGION','us-east-1');os.environ.setdefault('WORK_DIR',tempfile.mkdtemp())
 # Instantiating clients does not make requests. Dummy credentials isolate the local tests.
 os.environ['AWS_ACCESS_KEY_ID']='local-only';os.environ['AWS_SECRET_ACCESS_KEY']='local-only'
-from worker import choose,dedup,extract,probe,InvalidVideo,render,vision,LITE
+from worker import choose,dedup,extract,probe,InvalidVideo,render,vision,LITE,review_candidates
 from music import compose
 class MediaTests(unittest.TestCase):
  def test_model_json_with_trailing_commentary(self):
@@ -26,6 +26,18 @@ class MediaTests(unittest.TestCase):
  def test_overlap_and_duplicate_merge(self):
   events=[{'time':30,'start':18,'end':39,'confidence':.9,'included':True,'kind':'goal'}, {'time':45,'start':33,'end':54,'confidence':.8,'included':True,'kind':'save'}, {'time':32,'start':20,'end':41,'confidence':.5,'included':False,'kind':'possible_goal'}]
   self.assertEqual(len(dedup(events)),2);self.assertEqual(choose(events,180)[0]['end'],54);self.assertEqual(len(choose(events,180)),1)
+ def test_all_goals_survive_short_reel_budget(self):
+  goals=[{'id':str(i),'time':i*40,'start':i*40,'end':i*40+25,'confidence':.9,'included':True,'kind':'goal'} for i in range(6)]
+  self.assertEqual(len(choose(goals,90)),6)
+  self.assertEqual(sum(e['end']-e['start'] for e in choose(goals,90)),150)
+  goals[0]['included']=False
+  self.assertEqual(len(choose(goals,90)),5)
+ def test_no_goal_candidate_dropped_at_review_limit(self):
+  goals=[{'time':i*30,'kind':'goal','confidence':.9} for i in range(45)]
+  others=[{'time':2000+i*30,'kind':'save','confidence':.8} for i in range(50)]
+  reviewed=review_candidates(goals+others)
+  self.assertEqual(sum(e['kind']=='goal' for e in reviewed),45)
+  self.assertEqual(sum(e['kind']=='save' for e in reviewed),40)
  def test_excluded_clips_and_duration_budget(self):
   e=[{'time':i*30,'start':i*30,'end':i*30+20,'confidence':.9-i*.01,'included':i<5,'kind':'save'} for i in range(6)]
   self.assertEqual(len(choose(e,60)),3);self.assertLessEqual(sum(x['end']-x['start'] for x in choose(e,60)),60)

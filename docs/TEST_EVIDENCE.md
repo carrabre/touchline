@@ -75,3 +75,14 @@ To finish: restore authorized AWS access, provision scoped Site credentials, dep
 - The first real video-analysis response included trailing JSON commentary, causing the strict parser to fail. Fixed parsing to read the first structured object and added a regression test. All four media tests passed in 7.242 seconds; the updated worker was installed and the test fixture requeued. Detection quality is still pending.
 
 - Raw scout response used a bare event array instead of the requested wrapper. The parser now accepts both schemas, with regression coverage. The initial scout output also proposed implausible adjacent goals, so autonomous detection accuracy is expressly NOT certified; independent deep review and source inspection are required.
+
+## All-goals correction
+
+- Audited the entire 90:41 score progression at 30-second intervals, then inspected consecutive source frames around each scoring sequence. Final scoreboard: Belmont 1–2 Lexington. Three source goals at approximately 230, 2451 and 4929 seconds; no additional score increases. Ground truth and verification method are recorded in GOAL_AUDIT.json.
+- Actual visual inference failed this audit: the scout hallucinated goals in ordinary footage, a separate video review misidentified the scoring team, and an image-sequence review incorrectly rejected a real goal. Automatic all-goal recall is NOT verified. The blind analysis run was stopped at needs_review; its checkpoints remain for diagnosis.
+- Corrected two independent omission risks: every goal/possible-goal candidate is reviewed regardless of the optional-action review limit, and every included goal survives the selected reel-duration budget. Explicitly excluded goals remain excluded.
+- Seven media tests passed in 7.300 seconds, including goals beyond a 90-second budget and 45 goal candidates beyond a 40-candidate limit.
+- Queued an AWS worker render with all three source-audited goals and a 90-second target. This uses human-verified reference events and must not be represented as successful autonomous detection.
+
+- The corrected AWS reel completed successfully: 101.063672 seconds, 24,064,360 bytes, worker 51.11 seconds (render 48.8). All 3 audited source goals fall within the 3 rendered clip windows; missing goals: 0. Entire downloaded MP4 decoded without errors. Representative output frames at 11, 39 and 76 seconds match the three scoring sequences. This is 3/3 audited inclusion, not 3/3 autonomous recall.
+- Added an authenticated sample action that imports this fixed licensed fixture into the signed-in user's library, with its verified goal evidence. Edits generate that user's own subsequent reels; deleting the sample does not delete the shared fixture.

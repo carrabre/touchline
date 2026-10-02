@@ -8,6 +8,16 @@ async function handle(req:Request){
   if(!['GET','HEAD'].includes(req.method)){const origin=req.headers.get('origin');if(origin && origin!==new URL(req.url).origin)return json({error:'Cross-site request rejected.'},403);}
   const config=env as unknown as Record<string,string>;if(!config.MEDIA_ACCESS_KEY || !config.MEDIA_SECRET_KEY){if(req.method==='GET' && new URL(req.url).pathname==='/api/matches')return json({matches:[],available:false});return json({error:'Media processing is offline. The AWS connection must be restored before uploading.'},503);}
   const path=new URL(req.url).pathname.slice(5).split('/');
+  if(path[0]==='sample' && path.length===1 && req.method==='POST'){
+   const fixture=await get('validation-all-goals-20261002');
+   if(!fixture || fixture.status!=='ready' || !fixture.reelKey)return json({error:'Sample reel unavailable.'},503);
+   const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(owner+':verified-goals-sample-v1'));
+   const id=Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,32);
+   const existing=await get(id);if(existing && existing.status!=='discarded')return json({match:existing});
+   const sample:Match={...fixture,id,owner,title:'Sample · All 3 goals',created:Date.now(),revision:0,
+    events:fixture.events.map(e=>({...e,verified:true})),note:'Three source-verified goals. Final score: Belmont 1–2 Lexington.'};
+   await put(sample);return json({match:sample});
+  }
   if(path[0]!=='matches')return json({error:'Not found.'},404);
   if(path.length===1 && req.method==='GET'){
    const d=await scan({FilterExpression:'#o = :owner',ExpressionAttributeNames:{'#o':'owner'},ExpressionAttributeValues:{':owner':{S:owner}},Limit:100});
