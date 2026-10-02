@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Touchline · Your match studio",
-  description: "Private soccer highlights from the whole match.",
+  description: "Soccer highlights from the whole match.",
   other: {
     "codex-preview": "development",
   },
