@@ -18,7 +18,7 @@
 - React best-practices review: request/data access is server-side, large video uses file slices rather than full-file buffers, hook subscriptions clean up timers/listeners, controls have accessible names, responsive layout checked.
 - AWS account/region, existing instance availability, SSM and Docker availability: verified before session expiry.
 - Bedrock Nova Lite text invocation: passed before expiry. **This does not verify video analysis.**
-- Dedicated storage/table/IAM setup calls reached access-key creation. A local bootstrap output-path error was fixed. Root session subsequently expired. Runtime credentials and worker are **not installed**.
+- Dedicated storage/table/IAM setup calls reached access-key creation. A local bootstrap output-path error was fixed. Root session subsequently expired. Runtime credentials and worker were subsequently installed (see current setup).
 - Clip duplicate/overlap and exclusion/budget unit checks: passed.
 - Real local FFmpeg render: three tests passed in 7.238 seconds. Sample output is 22.042 seconds, 5,472,805 bytes, H.264 at 852 × 480 (display aspect ratio preserved) and AAC. Sample source windows: 60–72 seconds and 80–90 seconds, selected manually for render validation, not by the detector. A representative rendered frame was visually inspected; title and original timestamp labels are readable. Audio stream is present; subjective listening has not been certified.
 - Local slow-video timestamp check: passed after correcting output duration when slowing the deep-review video.
@@ -26,9 +26,9 @@
 
 Local rendering clips, when provided, are manually chosen smoke-test material, **not detected goals or highlights**. They are not proof that the autonomous detector works.
 
-## Blocker
+## Current setup
 
-AWS CLI root login session expired. Existing browser sign-in renewal required a CAPTCHA. It cannot be completed autonomously. No root credentials were put into the Site or repository. A dedicated unused IAM access key created before the local path error should be revoked once setup resumes. The private web surface explicitly shows media processing offline until its scoped credentials are configured.
+AWS authentication was restored on October 2. Scoped Site credentials are installed in environment revision 1; the worker is running on the existing instance. The unused setup access key was revoked. An initial Docker build could not reach HTTP package mirrors; switching Debian mirrors to HTTPS fixed it. Browser-assisted upload still fails while reading the selected local file, before match creation; native picker automation also timed out. This remains a browser upload verification blocker.
 
 The Sites plugin's local helper directory also disappeared from the environment during this session. The build source and native hosting tools remain available; publishing uses a documented native source/version flow with manual source preparation where the helper is unavailable.
 
@@ -62,3 +62,12 @@ The Sites plugin's local helper directory also disappeared from the environment 
 | Two-hour browser recording | Unverified; UI explains limitations |
 
 To finish: restore authorized AWS access, provision scoped Site credentials, deploy the isolated worker, publish configuration, run this matrix through the live browser and retain model outputs, job timings and inspected source/reel timestamps. Correct issues and rerun affected tests before calling the app complete.
+
+## October 2 follow-up checks
+
+- Removed all privacy wording from the app interface and metadata, retaining existing access controls. Static rendered markup copy fell from 424 to 199 words (53%); this count excludes dynamic event evidence, errors and attributes.
+- TypeScript and production build passed. Simplified UI deployed successfully with environment revision 1 and verified in the live signed-in browser.
+- Three local media tests rerun: passed in 7.243 seconds, including real rendering and slow-video timestamp checks.
+- Actual AWS worker render fixture: manually selected 0–12 seconds from the existing 22-second render smoke asset, analysis deliberately skipped. Worker completed in 7.69 seconds (render 7.38 seconds). Downloaded output: 12.019662 seconds, 2,830,679 bytes, H.264 852×480 + AAC. Full FFmpeg decode passed; a representative frame inspected. Artifact: outputs/aws-render-test.mp4 in the parent task outputs directory. This confirms deployed rendering/storage, not learned detection or the web upload path.
+- Full 90:41 source uploaded using AWS CLI into a separate test namespace, then queued directly in DynamoDB. It reached video analysis. This bypasses the blocked browser upload path and cannot certify an end-to-end UI test.
+- 120-minute fixture and full browser recording remain unverified.
