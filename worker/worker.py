@@ -96,7 +96,7 @@ def choose(events,target):
  selected=[];total=0
  for e in sorted((x for x in events if x['included']),key=lambda x:(0 if x.get('manual') else 1,{'goal':0,'save':1,'close_chance':2,'impressive_play':3,'possible_goal':4}.get(x['kind'],3),-x['confidence'])):
   length=e['end']-e['start']
-  if e['kind']=='goal' or total+length<=target or not selected:selected.append(dict(e));total+=length
+  if e['kind']=='goal' or e.get('manual') or total+length<=target or not selected:selected.append(dict(e));total+=length
  selected.sort(key=lambda e:e['start']);merged=[]
  for e in selected:
   if merged and e['start']<=merged[-1]['end']+.5:merged[-1]['end']=max(merged[-1]['end'],e['end'])
@@ -209,6 +209,16 @@ def scan():
   if 'LastEvaluatedKey' not in r:return items
   args['ExclusiveStartKey']=r['LastEvaluatedKey']
 
+def cleanup_discarded(m):
+ prefix=f"matches/{m['owner']}/{m['id']}/"
+ if m.get('uploadId'):
+  try:s3.abort_multipart_upload(Bucket=BUCKET,Key=m['key'],UploadId=m['uploadId'])
+  except ClientError as error:
+   if error.response['Error']['Code']!='NoSuchUpload':logging.warning('Multipart cleanup retry for %s',m['id'])
+ for page in s3.get_paginator('list_objects_v2').paginate(Bucket=BUCKET,Prefix=prefix):
+  objs=[{'Key':x['Key']} for x in page.get('Contents',[])]
+  if objs:s3.delete_objects(Bucket=BUCKET,Delete={'Objects':objs})
+
 def main():
  while True:
   try:
@@ -216,10 +226,7 @@ def main():
    for i in sorted(items,key=lambda i:float(i.get('updated',{'N':'0'})['N'])):
     stage=i['stage']['S']
     if stage=='discarded':
-     m=json.loads(i['doc']['S']);prefix=f"matches/{m['owner']}/{m['id']}/"
-     for page in s3.get_paginator('list_objects_v2').paginate(Bucket=BUCKET,Prefix=prefix):
-      objs=[{'Key':x['Key']} for x in page.get('Contents',[])]
-      if objs:s3.delete_objects(Bucket=BUCKET,Delete={'Objects':objs})
+     cleanup_discarded(json.loads(i['doc']['S']))
      continue
     if not (stage=='queued' or stage in ['ingestion','analysis','selection','rendering'] and float(i.get('lease',{'N':'0'})['N'])<now):continue
     lease=now+1800

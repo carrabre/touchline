@@ -40,8 +40,10 @@ async function handleOwned(req:Request,owner:string){
   if(path.length===1 && req.method==='POST'){
    const b=await req.json() as any;
    if(!b.title?.trim() || b.title.length>100 || !b.fingerprint || b.fingerprint.length>300 || !/^video\/(mp4|quicktime|webm|x-matroska)$/.test(b.mime)|| !Number.isSafeInteger(b.size)||b.size<0||b.size>MAX)return json({error:'Choose an MP4, MOV, WebM or MKV video under 16 GB.'},400);
-   const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(owner+':'+b.fingerprint));const id=Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,32);
-   const existing=await get(id);if(existing)return json({match:existing,chunkSize:CHUNK});
+   const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(owner+':'+b.fingerprint));let id=Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,32);
+   let existing=await get(id);
+   while(existing?.status==='discarded'){const retryHash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(existing.id+':reupload'));id=Array.from(new Uint8Array(retryHash)).map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,32);existing=await get(id);}
+   if(existing)return json({match:existing,chunkSize:CHUNK});
    const d=await scan({FilterExpression:'#o = :o AND (#s = :u OR #s = :q OR #s = :a OR #s = :r)',ExpressionAttributeNames:{'#o':'owner','#s':'stage'},ExpressionAttributeValues:{':o':{S:owner},':u':{S:'uploading'},':q':{S:'queued'},':a':{S:'analysis'},':r':{S:'rendering'}}});if((d.Items||[]).length>=3)return json({error:'Finish or discard an active upload before starting another (three at a time).'},429);
    const m:Match={id,owner,title:b.title.trim(),filename:String(b.filename).slice(0,200),mime:b.mime,size:b.size,key:`matches/${owner}/${id}/source`,recording:!!b.recording,created:Date.now(),status:'uploading',events:[],revision:0,length:180,labels:true};
    if(!m.recording){const x=await(await s3(m.key,'?uploads',{method:'POST',headers:{'content-type':m.mime}})).text();m.uploadId=xmlValue(x,'UploadId');if(!m.uploadId)throw new Error('Could not start upload.');}
@@ -88,7 +90,13 @@ async function handleOwned(req:Request,owner:string){
    m.events=b.events.map((e:Event)=>{const original=m.events.find(x=>x.id===e.id);return {...(original||{id:e.id,time:e.time,kind:'manual',manual:true,confidence:1,evidence:'Added by you'}),start:e.start,end:e.end,included:e.included};});m.length=[90,180,240].includes(b.length)?b.length:180;m.labels=!!b.labels;m.music=b.music||'random';m.revision++;m.status='queued';m.note='Your edits are saved. Waiting to render.';
    await put(m,'revision = :r AND (stage = :a OR stage = :b OR stage = :c)',{':r':{N:String(b.revision)},':a':{S:'ready'},':b':{S:'needs_review'},':c':{S:'failed'}});return json({match:m});
   }
-  if(req.method==='DELETE' && !action){if(!['uploading','ready','needs_review','failed'].includes(m.status))return json({error:'Processing is in progress.'},409);if(m.uploadId&&m.status==='uploading')await s3(m.key,`?uploadId=${encodeURIComponent(m.uploadId)}`,{method:'DELETE'});m.status='discarded';await put(m);return json({ok:true});}
+  if(req.method==='DELETE' && !action){
+   const revision=m.revision;m.revision++;m.status='discarded';
+   // Invalidate any running worker before removing media; its lease writes require the old revision.
+   await put(m,'revision = :r AND #s <> :d',{':r':{N:String(revision)},':d':{S:'discarded'}}, {'#s':'stage'});
+   if(m.uploadId)try{await s3(m.key,`?uploadId=${encodeURIComponent(m.uploadId)}`,{method:'DELETE'});}catch{console.warn('Multipart cleanup deferred:',m.id);}
+   return json({ok:true});
+  }
   return json({error:'Not found.'},404);
  }catch(e){const msg=e instanceof Error?e.message:'Service unavailable.';console.error('Media API:',msg);return json({error:msg.includes('ConditionalCheckFailed')?'This match changed. Refresh and retry.':msg},msg==='Match not found.'?404:503);}
 }

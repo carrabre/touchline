@@ -67,6 +67,37 @@ class MediaTests(unittest.TestCase):
   self.assertEqual(sum(e['end']-e['start'] for e in choose(goals,90)),150)
   goals[0]['included']=False
   self.assertEqual(len(choose(goals,90)),5)
+ def test_deleted_upload_cleanup_is_scoped_to_its_own_media(self):
+  from unittest.mock import patch,MagicMock
+  from worker import cleanup_discarded
+  fake=MagicMock();fake.get_paginator.return_value.paginate.return_value=[{'Contents':[{'Key':'matches/uploader/game/source'},{'Key':'matches/uploader/game/reel-r0.mp4'}]}]
+  with patch('worker.s3',fake):cleanup_discarded({'owner':'uploader','id':'game','key':'matches/uploader/game/source','uploadId':'pending'})
+  fake.abort_multipart_upload.assert_called_once_with(Bucket='local-test-only',Key='matches/uploader/game/source',UploadId='pending')
+  fake.get_paginator.return_value.paginate.assert_called_once_with(Bucket='local-test-only',Prefix='matches/uploader/game/')
+  self.assertEqual(len(fake.delete_objects.call_args.kwargs['Delete']['Objects']),2)
+ def test_thirty_goals_and_manual_goals_survive_every_length(self):
+  for kind,manual in [('goal',False),('manual',True)]:
+   goals=[{'id':str(i),'time':i*40+15,'start':i*40,'end':i*40+35,'confidence':.9,'included':True,'kind':kind,'manual':manual} for i in range(30)]
+   for target in [90,180,240]:
+    clips=choose(goals,target)
+    self.assertEqual(len(clips),30)
+    self.assertEqual(sum(e['end']-e['start'] for e in clips),1050)
+   goals[0]['included']=False
+   self.assertEqual(len(choose(goals,90)),29)
+ def test_real_thirty_clip_render(self):
+  with tempfile.TemporaryDirectory() as d:
+   p=pathlib.Path(d);source=p/'source.mp4'
+   subprocess.run(['ffmpeg','-nostdin','-v','error','-f','lavfi','-i','testsrc2=size=160x90:rate=15:duration=90','-c:v','libx264','-pix_fmt','yuv420p','-y',str(source)],check=True)
+   events=[{'id':str(i),'time':i*3+.5,'start':i*3,'end':i*3+1,'confidence':1,'included':True,'kind':'goal'} for i in range(30)]
+   m={'title':'30 goals · render capacity test','labels':True,'music':'titan','revision':0}
+   out,seconds,clips=render(source,p,m,choose(events,90))
+   self.assertEqual(len(clips),30)
+   self.assertAlmostEqual(seconds,30,delta=1)
+   info,_,_=probe(out)
+   self.assertEqual(info['streams'][0]['codec_name'],'h264')
+   self.assertTrue(any(x['codec_name']=='aac' for x in info['streams']))
+   dest=os.environ.get('THIRTY_GOAL_OUTPUT')
+   if dest:__import__('shutil').copy(out,dest)
  def test_no_goal_candidate_dropped_at_review_limit(self):
   goals=[{'time':i*30,'kind':'goal','confidence':.9} for i in range(45)]
   others=[{'time':2000+i*30,'kind':'save','confidence':.8} for i in range(50)]

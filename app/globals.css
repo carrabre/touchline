@@ -18,3 +18,10 @@ button svg,a.primary svg,.secondary svg{flex-shrink:0}
 .addmoment>div{flex-wrap:wrap;gap:12px}.addmoment input{flex:1 1 150px}
 input:disabled{opacity:.7;cursor:default}
 @media(max-width:700px){.rail .brand{margin-bottom:0}.nav{min-width:44px;min-height:44px;padding:11px;gap:0}.actions>*{flex:1 1 180px}.pagehead>.primary{width:100%}.addmoment .secondary{flex:1 1 auto}}
+
+/* Separate card navigation and deletion: never nest interactive buttons. */
+.matchtile{display:flex;flex-direction:column;gap:12px;min-width:0}
+.matchtile .matchcard{width:100%;flex:1}
+.delete-match{align-self:flex-end}
+.match-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:12px}
+@media(max-width:700px){.match-actions{width:100%;justify-content:stretch}.match-actions>*{flex:1;justify-content:center}}
