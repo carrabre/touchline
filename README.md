@@ -2,7 +2,7 @@
 
 Turn soccer recordings into goal reels with instrumental music.
 
-**[Open app](https://touchline-two-zeta.vercel.app)** · [Three-video results](docs/THREE_VIDEO_TESTS.md)
+**[Open app](https://touchline-two-zeta.vercel.app)** · [Three-video results](docs/THREE_VIDEO_TESTS.md) · [30-goal test](docs/THIRTY_GOAL_TEST.md)
 
 ## Use
 

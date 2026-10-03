@@ -1,0 +1,70 @@
+{
+  "aws_capacity": {
+    "status": "passed",
+    "clips": 30,
+    "seconds": 120.172982,
+    "target": 90,
+    "source": "generated footage",
+    "worker_commit": "55bc00a"
+  },
+  "deletion_checks": [
+    {
+      "check": "uploader deletion succeeds and other viewers cannot delete",
+      "status": "passed"
+    },
+    {
+      "check": "deleted file can be uploaded again and interrupted re-upload resumes correctly",
+      "status": "passed"
+    }
+  ],
+  "public_access_checks": [
+    {
+      "check": "fresh visitors see the same existing games",
+      "status": "passed",
+      "games": 8
+    },
+    {
+      "check": "internal jobs and upload metadata are hidden",
+      "status": "passed"
+    },
+    {
+      "check": "direct public game links provide source and reel previews",
+      "status": "passed"
+    },
+    {
+      "check": "viewers cannot edit or delete another uploader game",
+      "status": "passed"
+    },
+    {
+      "check": "music credits are public",
+      "status": "passed"
+    },
+    {
+      "check": "new upload progress is visible to other browsers",
+      "status": "passed"
+    },
+    {
+      "check": "only uploader can manage upload parts",
+      "status": "passed"
+    },
+    {
+      "check": "discarded uploads disappear from shared views",
+      "status": "passed"
+    },
+    {
+      "check": "cross-origin mutations rejected",
+      "status": "passed"
+    },
+    {
+      "check": "new soccer-ball favicon is served",
+      "status": "passed"
+    }
+  ],
+  "local_validation": {
+    "web_tests_passed": 19,
+    "media_tests_passed": 13,
+    "optional_media_test_skipped": 1,
+    "build": "passed"
+  },
+  "github_checks": "https://github.com/carrabre/touchline/actions/runs/37106352169"
+}
