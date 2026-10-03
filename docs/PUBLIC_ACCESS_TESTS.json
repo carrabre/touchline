@@ -1,26 +1,39 @@
 {
+  "site": "https://touchline-two-zeta.vercel.app",
   "date": "2026-10-03",
-  "production": "https://touchline-two-zeta.vercel.app",
-  "sessionTestsPassed": 5,
-  "liveChecks": [
+  "access_model": "All games and active uploads are publicly viewable; only the uploading browser can edit or manage its uploads.",
+  "production_checks": [
     {
-      "check": "visitor A starts with a separate empty library",
+      "check": "fresh visitors see the same existing games",
+      "status": "passed",
+      "games": 8
+    },
+    {
+      "check": "internal jobs and upload metadata are hidden",
       "status": "passed"
     },
     {
-      "check": "visitor B starts with a separate empty library",
+      "check": "direct public game links provide source and reel previews",
       "status": "passed"
     },
     {
-      "check": "both visitors can independently import, reopen and preview a sample",
+      "check": "viewers cannot edit or delete another uploader game",
       "status": "passed"
     },
     {
-      "check": "visitor B cannot read visitor A match",
+      "check": "music credits are public",
       "status": "passed"
     },
     {
-      "check": "visitor B cannot edit visitor A match",
+      "check": "new upload progress is visible to other browsers",
+      "status": "passed"
+    },
+    {
+      "check": "only uploader can manage upload parts",
+      "status": "passed"
+    },
+    {
+      "check": "discarded uploads disappear from shared views",
       "status": "passed"
     },
     {
@@ -28,14 +41,24 @@
       "status": "passed"
     },
     {
-      "check": "forged identity header and cookie rejected",
-      "status": "passed"
-    },
-    {
-      "check": "site opens without authentication or redirects",
+      "check": "new soccer-ball favicon is served",
       "status": "passed"
     }
   ],
-  "existingLibraryMatchesPreserved": 7,
-  "pastDeploymentsProtected": true
+  "unit_tests": {
+    "passed": 7
+  },
+  "responsive_checks": {
+    "desktop_width": 1512,
+    "mobile_width": 390,
+    "horizontal_overflow": false,
+    "primary_button_height": 48,
+    "icon_button_height": 44,
+    "views": [
+      "library",
+      "upload",
+      "match studio"
+    ]
+  },
+  "coverage_note": "Upload registration, shared progress visibility, and owner-only multipart permissions tested. This test does not transfer or process a new recording."
 }
