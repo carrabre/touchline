@@ -36,4 +36,4 @@ The worker now reviews 96 source seconds starting 60 seconds before each scout t
 - Browser file upload, interrupted upload, recording, two-hour processing, subjective audio listening and general automatic detection accuracy are not certified by these tests.
 - No videos, signed object URLs, account owner IDs or credentials are committed to the public repository. Video outputs remain in the user's library and local task output folder.
 
-Source: https://github.com/carrabre/touchline · App: https://touchline-two-zeta.vercel.app (Vercel login required).
+Source: https://github.com/carrabre/touchline · App: https://touchline-two-zeta.vercel.app (no sign-in required; each browser has its own library).

@@ -1,75 +1,31 @@
 # Touchline
 
-A private soccer match library, resumable uploader, incremental browser recorder, and highlight review studio. The intended production pipeline uses real visual analysis across the full match and a separate durable media worker.
+Turn full soccer recordings into goal reels with instrumental music.
 
-Vercel production: https://touchline-two-zeta.vercel.app (requires your Vercel login).
-
-Original Site: https://touchline-reels.carrabre.chatgpt.site
-
-See docs/VERCEL.md for the single-owner Vercel hosting setup.
-
-**Current delivery state: incomplete.** The app, scoped AWS connection and isolated worker are deployed. GitHub is connected to the protected Vercel deployment at https://touchline-two-zeta.vercel.app. Three additional full match tests exposed both missed goals and false selections. Reviewed reels include all audited goals, but automatic all-goal detection is not reliable. Browser file upload and 120-minute processing remain unverified; see docs/THREE_VIDEO_TESTS.md and docs/TEST_EVIDENCE.md.
+**[Open Touchline](https://touchline-two-zeta.vercel.app)** · [Test results](docs/THREE_VIDEO_TESTS.md)
 
 ## Use
 
-1. Sign in with Vercel on the Vercel deployment, or ChatGPT on the original Site.
-2. Choose New match, name the game, and select a supported video (MP4 recommended, MOV/WebM/MKV accepted). Maximum 16 GB and 120 minutes.
-3. Keep the upload page open until transfer completes. Reselect the identical file to resume an interrupted multipart upload. Closing the page after upload does not cancel the durable job.
-4. Return to the match to review clips. High confidence is a model judgment, not a certified goal. Preview each candidate, include/exclude it, change boundaries in seconds, or add a missed event with a source timestamp.
-5. Save edits and regenerate, then download the MP4.
+No sign-in needed. Each browser has its own match library.
 
-Processing requires the configured AWS media service.
+1. Choose **New match** and upload a video (MP4, MOV, WebM or MKV; up to 16 GB and 120 minutes).
+2. Keep the page open until upload finishes. Processing continues afterward.
+3. Review detected moments, adjust clips and add any missed goals.
+4. Save, regenerate and download your reel and music credits.
 
-## Architecture
+Automatic detection currently misses some goals and selects non-goals. Review is required. Clearing browser cookies resets access to that browser's library.
 
-- **Web**: React 19, Vinext/Next App Router, TypeScript, Sites/Cloudflare Workers. Owner-private Sign in with ChatGPT gate. Each API request also requires the trusted authenticated user ID; ownership is checked before file or match access. Same-origin mutation checks protect against cross-site submissions.
-- **Storage**: a dedicated private S3 bucket `touchline-media-977099028101-us-east-1`, server-side AES256 encryption, public access blocked. Direct signed multipart uploads use 16 MB slices; the entire video never enters browser memory or a Worker request. Incomplete multipart uploads expire after seven days. Download/preview URLs are bearer capabilities expiring after one hour. Keep these URLs private.
-- **State/queue**: dedicated DynamoDB table `touchline-matches`, on-demand billing. Conditional writes implement file submission idempotency, edit revisions and worker leases. Durable state is server-side. No browser storage is the source of truth.
-- **Worker**: a separate Docker container on the existing AWS instance `i-0f165410a7653c04e`. Limits: 2 CPU, 4 GB RAM, 128 processes, one match at a time, no inbound listener or GPU access. Other services are preserved. Compute files are erased after each job; canonical files and analysis checkpoints persist in S3. The container restarts after host reboot.
-- **Analysis**: goal-focused Amazon Nova 2 Lite inspects overlapping 180-second windows stepped by 170 seconds across the entire source. Every goal candidate receives a separate review with a different prompt in a 96-second neighborhood beginning 60 seconds before the scout time slowed to half speed (effective 2 fps). Seconds transform back to source time; duplicate reviews are merged. All included goals survive the reel duration target. The original 90:41 test matched its three audited goals. Three subsequent recordings exposed misses and false positives; manual studio review is currently necessary. Two-hour processing remains unverified.
-- **Editing/rendering**: FFmpeg, H.264/YUV420P + AAC, original aspect ratio, CRF20 once for clip editing, stream copy at final assembly. Clean cuts, title and optional source-time labels, licensed instrumental music, sidechain ducking beneath source audio, fast-start MP4. Short/default/long targets are 90/180/240 seconds; included goals can exceed the target so no goal is omitted. Low-quality events are not added to fill time.
+## Development
 
-Convex was not used: the authorized AWS account already supports private large-file storage, atomic durable state, video inference and existing persistent compute. Keeping these together avoids another identity/storage bridge.
-
-## Local development
-
-Node >=22.13, Python 3.12+ and FFmpeg are required. No Docker is installed on the current Mac; the deployment target already has Docker.
+Requires Node 22.13+, Python 3.12+ and FFmpeg.
 
 ```sh
 npm ci
 npm run dev
-npx tsc --noEmit
 npm run build
-python3 -m venv .venv
-.venv/bin/pip install -r worker/requirements.txt
-SOCCER_SOURCE=/absolute/path/to/authorized.mp4 .venv/bin/python tests/test_media.py
+node --experimental-strip-types --test tests/test-vercel-auth.mjs
 ```
 
-The Sites starter supplies a mock identity in development only. Do not expose local development to the public network. Server configuration is through Worker environment bindings: `MEDIA_ACCESS_KEY`, `MEDIA_SECRET_KEY` (secrets), `MEDIA_BUCKET`, `MATCH_TABLE` (non-secret). The credential is restricted to this application's S3 bucket and DynamoDB table; never install root credentials into the Site.
+Next.js runs on Vercel; AWS S3/DynamoDB store recordings and jobs; a separate Python/FFmpeg worker analyzes and renders them. See [deployment setup](docs/VERCEL.md).
 
-## Finish infrastructure setup
-
-After an authorized AWS session is available:
-
-1. From this checkout run `python3 worker/provision.py`. This idempotently configures only dedicated Touchline storage/data resources and an additive scoped policy on the existing compute role. It stores the bootstrap key in the task's ignored `work/` directory with mode 0600. **An unused Touchline IAM access key was created before a local file-path error; revoke that unused key once the new working key is installed.** Do not rotate or touch unrelated users.
-2. Set the four environment values in the Sites runtime, marking both credential values secret. Do not put secrets in `.openai/hosting.json` or Git.
-3. Run `python3 worker/deploy.py`. Check its SSM command result and the isolated container logs. The container uses the instance IAM role rather than a stored AWS key. The host-network setting permits IMDSv2 access without weakening the host's metadata hop-limit; no application port is opened.
-4. Republish the same Site after runtime configuration. Do not create another Site or overwrite another deployment.
-5. Execute the complete production matrix in `docs/TEST_EVIDENCE.md`. The definition of done remains unmet until both required long-form production runs pass.
-
-## Reliability and limits
-
-- MIME declarations are validated before upload; FFprobe validates real media, duration and resolution at ingestion. Invalid bytes can be uploaded but must become a failed job, not a reel.
-- At most three active submissions per owner and one worker job run concurrently. Filename/size/mtime plus first/last MB content fingerprint deduplicates repeated UI submissions. This is a resumability identity, not a whole-file cryptographic integrity guarantee.
-- Jobs acquire a 30-minute renewable lease. Each segment/candidate saves progress. SDK network retries precede up to three job attempts, after which a visible failure offers retry. Multiple workers cannot publish the same revision through the lease check. Render output keys include edit revision.
-- Original footage remains stored until the match is discarded. Discarded objects are removed by the worker; multipart cleanup also has a lifecycle safety net. Retention policies and cost alarms should be reviewed before large-scale use.
-- Source footage is sent to Amazon Bedrock for inference. No uploaded footage is public by default.
-- 1 fps scouting can miss brief ball trajectories. Distant stationary footage, occlusion, poor lighting and small goals require careful review. Four full recordings have now been audited; the detector missed goals and selected non-goals on additional footage. These small tests do not establish general accuracy.
-- Browser recording saves five-second segments and stops rather than allowing an unbounded upload backlog. Interruptions preserve acknowledged segments. Backgrounding/locking mobile browsers can suspend capture. Neither short successful recording nor two-hour recording has been verified yet.
-- A single existing host is a single point of compute availability. Queued/checkpointed work survives a host outage, but waits for recovery. Automatic analysis is visual only at present; game audio is retained and mixed but is not currently an analysis signal.
-
-See `docs/TEST_EVIDENCE.md`, `docs/COSTS.md`, and `docs/MUSIC_LICENSE.md` for evidence and assumptions.
-
-## Soundtracks
-
-New reels randomly choose Hunted, Legionnaire (Original), or Titan by Scott Buckley. Choose a specific song in the studio, or regenerate in random mode for a different track. Download the music credits alongside the video and include them when publishing. See docs/MUSIC_LICENSE.md.
+Music: Hunted, Legionnaire (Original) and Titan by Scott Buckley, licensed CC BY 4.0. Include the downloaded credits when publishing. [Music licenses](docs/MUSIC_LICENSE.md).
