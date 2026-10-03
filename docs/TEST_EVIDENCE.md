@@ -1,6 +1,6 @@
 # Verification ledger
 
-**Overall definition of done: NOT MET.** Automatic detection and AWS rendering passed the audited 90:41 goal test. Production browser file upload, broader footage, recording and the 120-minute case remain unverified. This ledger distinguishes each tested path.
+**Overall definition of done: NOT MET.** Additional full-video tests exposed automatic goal misses, false selections and a clipped live scoring moment. Reviewed reels can include all audited goals, but the automatic all-goals requirement is not met. Production browser file upload, recording and the 120-minute case remain unverified. See [three-video test report](THREE_VIDEO_TESTS.md) for the latest results; historical entries below describe their original runs.
 
 ## Assets prepared
 
@@ -97,3 +97,7 @@ To finish: restore authorized AWS access, provision scoped Site credentials, dep
 - Eight media tests passed in 7.370 seconds. TypeScript and web build passed. New model invocation is scoped to the existing worker role; no root credentials entered the worker or Site.
 - Authenticated sample library entry uses the automatically detected reel, with its three events independently source-verified. Live browser loaded both source and reel without media errors and played the initial audited sample through its full duration; final automatic reel download/decode verified separately.
 - This is one test match from an elevated school-game camera with commentary/score graphics. It does not prove perfect recall on all future sideline videos or two-hour matches.
+
+## Three unique full recordings — October 2 follow-up
+
+See [THREE_VIDEO_TESTS.md](THREE_VIDEO_TESTS.md). Full source scans covered 34, 32 and 31 overlapping windows. AWS review/rendering and production studio editing were exercised. Raw automatic outputs failed the all-goals requirement on Winchester and Wilmington. The scoreless Lexington recording produced no false goal reel. The final reels include manual corrections, which are explicitly recorded. Public GitHub source is connected to the protected Vercel deployment; successful Git-triggered deployment was verified.

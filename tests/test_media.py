@@ -4,10 +4,21 @@ sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/'worker'))
 os.environ.setdefault('MEDIA_BUCKET','local-test-only');os.environ.setdefault('MATCH_TABLE','local-test-only');os.environ.setdefault('AWS_EC2_METADATA_DISABLED','true');os.environ.setdefault('AWS_DEFAULT_REGION','us-east-1');os.environ.setdefault('WORK_DIR',tempfile.mkdtemp())
 # Instantiating clients does not make requests. Dummy credentials isolate the local tests.
 os.environ['AWS_ACCESS_KEY_ID']='local-only';os.environ['AWS_SECRET_ACCESS_KEY']='local-only'
-from worker import choose,dedup,extract,probe,InvalidVideo,render,vision,LITE,review_candidates
+from worker import choose,dedup,extract,probe,InvalidVideo,render,vision,LITE,review_candidates,review_window
 from music import compose
 from soundtracks import select_music,TRACKS
 class MediaTests(unittest.TestCase):
+ def test_late_goal_candidate_includes_attacking_sequence(self):
+  # Real regression: the scout returned 3693, but the goal occurred near 3663.
+  start,length=review_window(3693,5749.44)
+  self.assertLessEqual(start,3663-15)
+  self.assertGreaterEqual(start+length,3693+20)
+ def test_review_context_stays_within_source(self):
+  for candidate,duration in [(3,100),(98,100),(1,2)]:
+   start,length=review_window(candidate,duration)
+   self.assertGreaterEqual(start,0)
+   self.assertGreater(length,0)
+   self.assertLessEqual(start+length,duration)
  def test_music_retry_and_regeneration(self):
   m={'revision':0,'music':'random'}
   first,_=select_music(m)

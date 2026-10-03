@@ -1,0 +1,232 @@
+{
+  "testedOn": "2026-10-02 America/Chicago",
+  "scope": "Full-source detector backend, AWS render/export, live Vercel studio editing; browser file upload not tested",
+  "automaticAllGoalsRequirement": "NOT MET",
+  "reviewedOutputGoalCoverage": "10 audited goals in 10 final clips; human corrections required",
+  "model": "us.amazon.nova-2-lite-v1:0",
+  "reviewVersion": "context-96-v1",
+  "mediaTests": {
+    "run": 11,
+    "passed": 11,
+    "skipped": 0,
+    "elapsedSeconds": 6.208
+  },
+  "recordings": [
+    {
+      "title": "Test 1 \u00b7 Boys vs Winchester",
+      "sourcePage": "https://archive.org/details/snafuinfinitysoccer-boys_102324-vs-winchester",
+      "sha256": "51d6574e0f0f7a0aa8014d344aaf6c3aef53c9e8d708953ae57f4e162cdf811a",
+      "duration": 5749.44,
+      "sourceGoals": [
+        523,
+        982,
+        2366,
+        3372,
+        3663,
+        5053
+      ],
+      "status": "ready",
+      "reviewedClips": [
+        {
+          "time": 522.5,
+          "start": 507.5,
+          "end": 542.5,
+          "kind": "goal",
+          "confidence": 0.9,
+          "evidence": "Ball enters net, followed by goal celebration and score update.",
+          "included": true
+        },
+        {
+          "time": 981.5,
+          "start": 966.5,
+          "end": 1001.5,
+          "kind": "goal",
+          "confidence": 0.9,
+          "evidence": "Ball enters net, goalie dives, players celebrate, scoreboard updates.",
+          "included": true
+        },
+        {
+          "time": 2365,
+          "start": 2350,
+          "end": 2385,
+          "kind": "goal",
+          "confidence": 0.9,
+          "evidence": "Ball enters net, followed by goal celebration and score update.",
+          "included": true
+        },
+        {
+          "time": 3371,
+          "start": 3356,
+          "end": 3391,
+          "kind": "goal",
+          "confidence": 0.9,
+          "evidence": "Ball enters net, goalie dives, players celebrate, scoreboard updates.",
+          "included": true
+        },
+        {
+          "time": 3660.4,
+          "start": 3645.4,
+          "end": 3680.4,
+          "kind": "goal",
+          "confidence": 0.9,
+          "evidence": "Ball enters net, followed by goal celebration and score update to 3-2.",
+          "included": true
+        },
+        {
+          "time": 5072,
+          "start": 5033,
+          "end": 5092,
+          "kind": "goal",
+          "confidence": 0.9,
+          "evidence": "Player in white scores, ball enters net, followed by celebration and score update to 4-2.",
+          "included": true
+        }
+      ],
+      "reelSeconds": 234.094336,
+      "music": "Titan",
+      "revision": 2,
+      "media": {
+        "bytes": 45824544,
+        "sha256": "cc5b2e7fdefb9002f59f92f9be1b3136e0b5ef5851283623b9947743d661dec3",
+        "duration": 234.094336,
+        "streams": [
+          {
+            "codec": "h264",
+            "type": "video"
+          },
+          {
+            "codec": "aac",
+            "type": "audio"
+          }
+        ],
+        "completeDecode": "passed"
+      },
+      "scoutWindows": 34,
+      "browserMediaReadyState": 4,
+      "browserMediaErrors": null,
+      "automaticResult": {
+        "initial64Seconds": {
+          "realGoals": 4,
+          "missedGoals": 2,
+          "extraClips": 1
+        },
+        "wide96Seconds": {
+          "selectedClips": 8,
+          "falseClips": 2,
+          "sourceGoalsWithLiveActionInsideOriginalTrim": 5,
+          "sourceGoalCount": 6
+        },
+        "manualCorrections": [
+          "Excluded two false clips",
+          "Expanded last clip start from 5057 to 5033"
+        ]
+      }
+    },
+    {
+      "title": "Test 2 \u00b7 Girls vs Lexington",
+      "sourcePage": "https://archive.org/details/snafuinfinitysoccer-girls_102124-vs-lexington",
+      "sha256": "049621af933e6000cc03d36c41c25a784dc1384bc96d329ca8b2733be83ced8b",
+      "duration": 5404.309,
+      "sourceGoals": [],
+      "status": "needs_review",
+      "reviewedClips": [],
+      "reelSeconds": null,
+      "music": null,
+      "revision": 0,
+      "scoutWindows": 32,
+      "browserMediaReadyState": 4,
+      "browserMediaErrors": null,
+      "automaticResult": {
+        "selectedClips": 0,
+        "sourceGoalCount": 0,
+        "noReelGenerated": true,
+        "manualCorrections": []
+      }
+    },
+    {
+      "title": "Test 3 \u00b7 Boys vs Wilmington",
+      "sourcePage": "https://archive.org/details/snafuinfinitysoccer-boys_100124-vs-wilmington",
+      "sha256": "7d73311159b6d7b7fc2f9c03fb2db391e735d676266c73b51db9c635ff443fa3",
+      "duration": 5202.283,
+      "sourceGoals": [
+        853,
+        3077,
+        4059,
+        4954
+      ],
+      "status": "ready",
+      "reviewedClips": [
+        {
+          "time": 853,
+          "kind": "manual",
+          "manual": true,
+          "confidence": 1,
+          "evidence": "Added by you",
+          "start": 838,
+          "end": 873,
+          "included": true
+        },
+        {
+          "time": 3077,
+          "kind": "manual",
+          "manual": true,
+          "confidence": 1,
+          "evidence": "Added by you",
+          "start": 3062,
+          "end": 3097,
+          "included": true
+        },
+        {
+          "time": 4059,
+          "kind": "manual",
+          "manual": true,
+          "confidence": 1,
+          "evidence": "Added by you",
+          "start": 4044,
+          "end": 4079,
+          "included": true
+        },
+        {
+          "time": 4952.5,
+          "start": 4937.5,
+          "end": 4972.5,
+          "kind": "goal",
+          "confidence": 0.9,
+          "evidence": "Ball enters net, players celebrate, scoreboard updates to 4-0.",
+          "included": true
+        }
+      ],
+      "reelSeconds": 140.085026,
+      "music": "Hunted",
+      "revision": 1,
+      "media": {
+        "bytes": 26204102,
+        "sha256": "24daeeeb451f04b6ead74310ea1c736b9eef24fe8d94e5c2ecc8649754604f4e",
+        "duration": 140.085026,
+        "streams": [
+          {
+            "codec": "h264",
+            "type": "video"
+          },
+          {
+            "codec": "aac",
+            "type": "audio"
+          }
+        ],
+        "completeDecode": "passed"
+      },
+      "scoutWindows": 31,
+      "browserMediaReadyState": 4,
+      "browserMediaErrors": null,
+      "automaticResult": {
+        "selectedClips": 1,
+        "sourceGoalCount": 4,
+        "missedGoals": 3,
+        "falseClips": 0,
+        "manualCorrections": [
+          "Added source goals at 853, 3077, 4059 seconds"
+        ]
+      }
+    }
+  ]
+}

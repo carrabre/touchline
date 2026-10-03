@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(messa
 REGION=os.getenv('AWS_DEFAULT_REGION','us-east-1');BUCKET=os.environ['MEDIA_BUCKET'];TABLE=os.environ['MATCH_TABLE'];ROOT=pathlib.Path(os.getenv('WORK_DIR','/data'))
 CONFIG=Config(retries={'max_attempts':5,'mode':'standard'},read_timeout=300,connect_timeout=30)
 s3=boto3.client('s3',region_name=REGION,config=CONFIG);ddb=boto3.client('dynamodb',region_name=REGION,config=CONFIG);model=boto3.client('bedrock-runtime',region_name=REGION,config=CONFIG)
-LITE='us.amazon.nova-2-lite-v1:0';PRO=LITE;VERSION='touchline-goals-2';ROOT.mkdir(parents=True,exist_ok=True)
+LITE='us.amazon.nova-2-lite-v1:0';PRO=LITE;VERSION='touchline-goals-2';REVIEW_VERSION='context-96-v1';ROOT.mkdir(parents=True,exist_ok=True)
 class InvalidVideo(Exception):pass
 class LostLease(Exception):pass
 def run(args,timeout=900):
@@ -71,6 +71,12 @@ DEEP='''Independently inspect this soccer sequence for an actual GOAL. The video
 def extract(source,out,start,duration,slow=False):
  vf='scale=768:-2,fps=2'+(',setpts=2*PTS' if slow else '')
  run(['ffmpeg','-nostdin','-v','error','-threads','2','-ss',str(start),'-i',str(source),'-t',str(duration*(2 if slow else 1)),'-an','-vf',vf,'-c:v','libx264','-threads','2','-preset','veryfast','-crf','28','-movflags','+faststart','-y',str(out)],600)
+
+def review_window(candidate_time,duration):
+ # Scout times can follow the shot by tens of seconds. Include the attacking
+ # sequence and restart so review can establish the outcome independently.
+ start=max(0,candidate_time-60)
+ return start,min(96,duration-start)
 
 def dedup(events):
  out=[]
@@ -167,7 +173,7 @@ def process(item,lease):
    # Every goal candidate gets an independent review; only optional action is capped.
    candidates=review_candidates(candidates)
    for idx,e in enumerate(candidates):
-    start=max(0,e['time']-20);length=min(64,duration-start);ck=f"analysis/{m['id']}/{VERSION}/deep-{int(e['time']*10)}.json";result=load_checkpoint(ck);m['note']=f'Checking candidate {idx+1} of {len(candidates)} at {int(e["time"]//60)}:{int(e["time"]%60):02d}';lease=heartbeat(m,lease,'analysis')
+    start,length=review_window(e['time'],duration);ck=f"analysis/{m['id']}/{VERSION}/deep-{REVIEW_VERSION}-{int(e['time']*10)}.json";result=load_checkpoint(ck);m['note']=f'Checking candidate {idx+1} of {len(candidates)} at {int(e["time"]//60)}:{int(e["time"]%60):02d}';lease=heartbeat(m,lease,'analysis')
     if not result:
      clip=directory/'analysis.mp4';extract(source,clip,start,length,True);data,tokens=vision(clip,DEEP,PRO,mode="review")
      if data['worthwhile'] and not 0<=float(data['time'])<=length*2:raise RuntimeError('Goal review timestamp is outside its video; retrying candidate.')
