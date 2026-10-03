@@ -6,14 +6,14 @@ Turn full soccer recordings into goal reels with instrumental music.
 
 ## Use
 
-No sign-in needed. Each browser has its own match library.
+No sign-in needed. Everyone can watch all games and upload new recordings. The uploading browser controls edits and upload management.
 
 1. Choose **New match** and upload a video (MP4, MOV, WebM or MKV; up to 16 GB and 120 minutes).
 2. Keep the page open until upload finishes. Processing continues afterward.
 3. Review detected moments, adjust clips and add any missed goals.
 4. Save, regenerate and download your reel and music credits.
 
-Automatic detection currently misses some goals and selects non-goals. Review is required. Clearing browser cookies resets access to that browser's library.
+Automatic detection currently misses some goals and selects non-goals. Review is required. Clearing browser cookies resets editing access to your uploads.
 
 ## Development
 

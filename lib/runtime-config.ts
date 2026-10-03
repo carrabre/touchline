@@ -13,7 +13,7 @@ function secret(): string {
 function signature(payload: string): string {
   return createHmac('sha256', secret()).update(payload).digest('base64url');
 }
-/** A signed browser identity keeps visitors out of each other's libraries. */
+/** A signed browser identity grants editing rights to its own uploads. */
 export function requestOwner(request: Request): string | null {
   const token = request.headers.get('cookie')?.split(';').map(c => c.trim())
     .find(c => c.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1);

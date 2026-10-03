@@ -11,8 +11,8 @@ Set server-only variables in Vercel:
 - `MEDIA_ACCESS_KEY`, `MEDIA_SECRET_KEY`: scoped AWS credentials.
 - `MEDIA_BUCKET`, `MATCH_TABLE`: existing S3 bucket and DynamoDB table.
 
-Production must be accessible without Vercel Authentication. Preview deployments can remain protected. Browser sessions use signed, HTTP-only cookies; each browser gets a random owner. APIs check ownership before accessing recordings or changing matches. Clearing cookies loses access to that browser's library; cross-device accounts are not implemented.
+Production must be accessible without Vercel Authentication. Preview deployments can remain protected. Browser sessions use signed, HTTP-only cookies; each browser gets a random owner. All games and upload progress are publicly viewable. APIs check ownership for editing, deleting and managing uploads. Clearing cookies loses editing access; cross-device accounts are not implemented.
 
 The existing media worker uses its instance IAM role. Update it with `python3 worker/deploy.py` and verify its deployment result. Do not commit secrets or recordings.
 
-Before publishing, run the session tests and production build. Verify an anonymous visitor can open the site and gets a separate library, and cannot read another owner's match.
+Before publishing, run the session tests and production build. Verify visitors see the same games and can view source videos/reels, while only uploaders can edit or manage their uploads.

@@ -4,3 +4,17 @@
 .offline{display:flex;align-items:flex-start;gap:14px;padding:18px 20px;background:#26303b;border:1px solid #526073;border-radius:8px;margin-top:22px;font-size:14px}.offline svg{flex-shrink:0;color:var(--lime)}.offline p{margin-top:3px}
 
 .summary{grid-template-columns:repeat(2,1fr)}.upload-layout{grid-template-columns:minmax(0,720px)}
+
+/* Consistent spacing for actions, icons, navigation and upload controls. */
+.primary,.secondary,.danger{min-height:48px;padding:12px 20px;gap:10px;max-width:100%;white-space:normal;line-height:1.4;text-align:center}
+button svg,a.primary svg,.secondary svg{flex-shrink:0}
+.nav{min-height:48px;gap:12px}.rail .brand{margin-bottom:32px}
+.back{min-height:44px;padding:8px 0;gap:10px}
+.iconbtn{width:44px;height:44px;flex-shrink:0}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:24px}
+.empty>.secondary{display:flex;margin:20px auto 0}
+.dropzone{gap:16px}.dropzone .upload-icon,.dropzone small{margin:0}
+.error{align-items:flex-start}.error button{min-width:44px;min-height:44px;padding:8px;flex-shrink:0}
+.addmoment>div{flex-wrap:wrap;gap:12px}.addmoment input{flex:1 1 150px}
+input:disabled{opacity:.7;cursor:default}
+@media(max-width:700px){.rail .brand{margin-bottom:0}.nav{min-width:44px;min-height:44px;padding:11px;gap:0}.actions>*{flex:1 1 180px}.pagehead>.primary{width:100%}.addmoment .secondary{flex:1 1 auto}}

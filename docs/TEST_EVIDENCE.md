@@ -11,8 +11,8 @@
 
 See [three-video report](THREE_VIDEO_TESTS.md), [structured results](THREE_VIDEO_RESULTS.json) and [original goal audit](GOAL_AUDIT.json).
 
-## Public browser libraries
+## Shared game library
 
-The app now uses signed browser sessions instead of a shared configured owner. New visitors need no sign-in and receive separate libraries. The existing owner's browser library was migrated before opening production access.
+The site now lists games and upload progress globally. Anyone can watch and download recordings/reels. Upload management, editing, retries and deletion remain limited to the uploading browser. Internal validation fixtures and discarded jobs are hidden. The previous isolated-library checks describe the earlier release; the latest shared-access checks are recorded in [PUBLIC_ACCESS_TESTS.json](PUBLIC_ACCESS_TESTS.json).
 
-Session tests cover distinct identities, forged headers, tampered cookies, expired sessions and missing signing configuration. Five session tests and eight live production checks passed. Two fresh visitors opened the site without authentication, independently imported and reopened sample reels, and could not read or edit each other's matches. Cross-origin mutations and forged identities were rejected. The original browser still shows its seven matches. Older generated deployment URLs remain protected. Results: [public access checks](PUBLIC_ACCESS_TESTS.json). These changes do not improve detector accuracy or certify the previously untested upload/recording paths.
+Seven session/access tests pass. Production verification covers shared listing, public previews, upload visibility, uploader-only management, and desktop/mobile button spacing. Detector accuracy and the previously untested long recording/upload paths remain unchanged.

@@ -1,5 +1,6 @@
 import { runtimeConfig, requestOwner, createBrowserSession } from '@/lib/runtime-config';
 import { db, scan, get, owned, put, s3, signed, parts, xmlValue, escapeXml, type Match, type Event } from '@/lib/aws';
+import { isPublicMatch, publicMatch } from '@/lib/match-access';
 import { musicChoices } from '@/lib/soundtracks';
 const MAX=16*1024**3, CHUNK=16*1024**2;
 const json=(d:unknown,status=200)=>Response.json(d,{status,headers:{'cache-control':'no-store'}});
@@ -7,7 +8,7 @@ async function handle(req:Request){
  try{
   const owner=requestOwner(req);
   if(owner)return await handleOwned(req,owner);
-  if(req.method!=='GET' || new URL(req.url).pathname!=='/api/matches')return json({error:'Open your match library to start a session.'},401);
+  if(req.method!=='GET')return json({error:'Open your match library to start a session.'},401);
   const session=createBrowserSession(req);
   const response=await handleOwned(req,session.owner);
   response.headers.set('set-cookie',session.cookie);
@@ -32,8 +33,9 @@ async function handleOwned(req:Request,owner:string){
   }
   if(path[0]!=='matches')return json({error:'Not found.'},404);
   if(path.length===1 && req.method==='GET'){
-   const d=await scan({FilterExpression:'#o = :owner',ExpressionAttributeNames:{'#o':'owner'},ExpressionAttributeValues:{':owner':{S:owner}},Limit:100});
-   return json({available:true,matches:(d.Items||[]).map((i:Record<string,any>)=>({...JSON.parse(i.doc.S),status:i.stage.S})).sort((a:Match,b:Match)=>b.created-a.created)});
+   const d=await scan({FilterExpression:'#s <> :discarded',ExpressionAttributeNames:{'#s':'stage'},ExpressionAttributeValues:{':discarded':{S:'discarded'}},Limit:100});
+   const matches=(d.Items||[]).map((i:Record<string,any>)=>({...JSON.parse(i.doc.S),status:i.stage.S})).filter(isPublicMatch).sort((a:Match,b:Match)=>b.created-a.created);
+   return json({available:true,matches:matches.map((m:Match)=>publicMatch(m,owner))});
   }
   if(path.length===1 && req.method==='POST'){
    const b=await req.json() as any;
@@ -46,9 +48,12 @@ async function handleOwned(req:Request,owner:string){
    try{await put(m,'attribute_not_exists(id)');}catch(e){const saved=await get(id);if(!saved)throw e;if(m.uploadId)await s3(m.key,`?uploadId=${encodeURIComponent(m.uploadId)}`,{method:'DELETE'});return json({match:saved,chunkSize:CHUNK});}
    return json({match:m,chunkSize:CHUNK});
   }
-  const m=await owned(path[1],owner),action=path[2];
+  const action=path[2];
+  const publicRead=req.method==='GET' && (!action || action==='credits');
+  const m=publicRead?await get(path[1]):await owned(path[1],owner);
+  if(!m || !isPublicMatch(m))throw new Error('Match not found.');
   if(action==='credits' && req.method==='GET'){if(!m.renderMusic?.credits)return json({error:'Music credits are available after rendering.'},404);return new Response(m.renderMusic.credits,{headers:{'content-type':'text/plain; charset=utf-8','content-disposition':'attachment; filename="touchline-music-credits.txt"','cache-control':'no-store'}});}
-  if(!action && req.method==='GET')return json({match:m,sourceUrl:m.status!=='uploading'?await signed(m.key):null,reelUrl:m.reelKey?await signed(m.reelKey,'GET','?response-content-disposition=attachment%3B%20filename%3D%22touchline-reel.mp4%22'):null});
+  if(!action && req.method==='GET')return json({match:publicMatch(m,owner),sourceUrl:m.status!=='uploading'?await signed(m.key):null,reelUrl:m.reelKey?await signed(m.reelKey,'GET','?response-content-disposition=attachment%3B%20filename%3D%22touchline-reel.mp4%22'):null});
   if(action==='parts' && req.method==='GET')return json({parts:m.recording?Array.from({length:m.parts||0},(_,i)=>({number:i+1})):await parts(m)});
   if(action==='part' && req.method==='POST'){
    if(m.status!=='uploading')return json({error:'This upload is already finished.'},409);
