@@ -1,0 +1,61 @@
+{
+  "matchId": "6a5e48e04b0ad9af7269ad3c1507a0e8",
+  "sourceBytes": 2330195291,
+  "sourceDurationSeconds": 1198.031667,
+  "sourceSHA256": "0f46d4a32070d922234e287bd209bcdd26ce95c0c0282443d6217d243a3277df",
+  "original": {
+    "model": "us.amazon.nova-2-lite-v1:0",
+    "scoutWindows": 8,
+    "scoutCandidates": 0,
+    "detailedReviews": 0,
+    "status": "needs_review"
+  },
+  "reanalysis": {
+    "frameVersion": "court-frames-v1",
+    "model": "us.anthropic.claude-sonnet-4-6",
+    "scoutWindows": 60,
+    "rawCandidates": 107,
+    "reviewedCandidates": 53,
+    "confirmedGoals": 0,
+    "unconfirmedCandidates": 53,
+    "expectedGoalTimesSuppliedToInference": false,
+    "allGoalsDetectionVerified": false,
+    "referenceGoalTimes": null,
+    "sourceScope": "Entire original recording; same frame extraction, prompt and crop preprocessing as the worker, inferred through a parallel diagnostic harness. Exact model checkpoints are reused on production reprocessing; selected checkpoints are intentionally left uncached to verify live worker inference.",
+    "crop": [
+      0.04,
+      0.43,
+      1,
+      0.92
+    ],
+    "usage": {
+      "inputTokens": 2876729,
+      "outputTokens": 134947
+    }
+  },
+  "controls": {
+    "knownGoal": {
+      "source": "Previously authorized Winchester five-minute excerpt",
+      "referenceApproxSeconds": 123,
+      "detectedSeconds": 125,
+      "confidence": 0.92,
+      "passed": true
+    },
+    "saveOrMiss": {
+      "candidateSeconds": 35,
+      "goalSelected": false,
+      "passed": true
+    }
+  },
+  "checks": {
+    "pythonTestsRun": 30,
+    "pythonPassed": 29,
+    "pythonSkipped": 1,
+    "webTestsPassed": 28,
+    "webProductionBuild": "passed"
+  },
+  "production": {
+    "status": "pending deployment and replay verification"
+  },
+  "limit": "No human-confirmed goal timestamp or total score for this recording has been provided. Zero model-confirmed goals is not proof that none were scored. Unconfirmed attempts must remain unchecked and are not a goals-only reel."
+}

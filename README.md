@@ -12,7 +12,7 @@ Everyone can watch all games and upload recordings without signing in. Only the 
 2. Review moments, trim clips, add missed goals, then regenerate and download. Use **Edit title** in the studio after processing to rename your match; regenerate to update the title inside the video.
 3. **Delete** on a library card or **Delete video** in the studio removes the game, source and reel from the shared library. Confirm before deleting; there is no restore. Processing jobs can also be deleted. AWS media cleanup follows asynchronously.
 
-Reels support at least **30 selected goals**, including manually added goals. Goals and manual moments are retained even when they exceed the 90-second / 3-minute / 4-minute target; that target limits optional other highlights. The editor accepts up to 100 moments. Automatic detection can miss goals or select non-goals, so review is still required. The 30-clip capacity test uses generated footage; it does not measure detection accuracy.
+Reels support at least **30 selected goals**, including manually added goals. Goals and manual moments are retained even when they exceed the 90-second / 3-minute / 4-minute target; that target limits optional other highlights. The editor accepts up to 100 moments. Automatic detection can miss goals or select non-goals, so review is still required. Empty scans receive a detailed frame pass; unconfirmed attempts stay unchecked for review. [Detection and worker deployment](docs/GOAL_DETECTION.md). The 30-clip capacity test uses generated footage; it does not measure detection accuracy.
 
 ## iPhone background uploads
 
