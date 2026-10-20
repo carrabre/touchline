@@ -82,6 +82,16 @@ async function handleOwned(req:Request,owner:string){
   if(action==='retry' && req.method==='POST'){
    if(m.status!=='failed')return json({error:'Only failed jobs can be retried.'},409);m.status='queued';m.error=undefined;m.attempts=0;await put(m,'stage = :s AND revision = :r',{':s':{S:'failed'},':r':{N:String(m.revision)}});return json({match:m});
   }
+  if(action==='title' && req.method==='POST'){
+   if(!['ready','needs_review','failed'].includes(m.status))return json({error:'Wait for upload and processing to finish before changing the title.'},409);
+   const b=await req.json() as {title?:unknown;revision?:unknown};
+   if(typeof b.title!=='string'||!b.title.trim()||b.title.trim().length>100)return json({error:'Enter a match title between 1 and 100 characters.'},400);
+   if(b.revision!==m.revision)return json({error:'This match changed. Refresh before saving.'},409);
+   const revision=m.revision;m.title=b.title.trim();m.revision++;
+   try{await put(m,'revision = :r AND #s = :s',{':r':{N:String(revision)},':s':{S:m.status}},{'#s':'stage'});}
+   catch(e){if(e instanceof Error&&e.message.includes('ConditionalCheckFailed'))return json({error:'This match changed. Refresh before saving.'},409);throw e;}
+   return json({match:publicMatch(m,owner)});
+  }
   if(action==='edit' && req.method==='POST'){
    if(!['ready','needs_review','failed'].includes(m.status))return json({error:'Wait for processing to finish before editing.'},409);
    const b=await req.json() as any;if(b.music!==undefined && !musicChoices.has(b.music))return json({error:'Choose a listed instrumental or Random.'},400);if(b.revision!==m.revision)return json({error:'This match changed. Refresh before saving.'},409);
