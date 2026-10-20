@@ -45,7 +45,7 @@ async function handleOwned(req:Request,owner:string){
    while(existing?.status==='discarded'){const retryHash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(existing.id+':reupload'));id=Array.from(new Uint8Array(retryHash)).map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,32);existing=await get(id);}
    if(existing)return json({match:existing,chunkSize:CHUNK});
    const d=await scan({FilterExpression:'#o = :o AND (#s = :u OR #s = :q OR #s = :a OR #s = :r)',ExpressionAttributeNames:{'#o':'owner','#s':'stage'},ExpressionAttributeValues:{':o':{S:owner},':u':{S:'uploading'},':q':{S:'queued'},':a':{S:'analysis'},':r':{S:'rendering'}}});if((d.Items||[]).length>=3)return json({error:'Finish or discard an active upload before starting another (three at a time).'},429);
-   const m:Match={id,owner,title:b.title.trim(),filename:String(b.filename).slice(0,200),mime:b.mime,size:b.size,key:`matches/${owner}/${id}/source`,recording:!!b.recording,created:Date.now(),status:'uploading',events:[],revision:0,length:180,labels:true};
+   const m:Match={id,owner,title:b.title.trim(),filename:String(b.filename).slice(0,200),mime:b.mime,size:b.size,key:`matches/${owner}/${id}/source`,recording:!!b.recording,backgroundUpload:b.backgroundUpload===true&&!b.recording&&b.size>0,created:Date.now(),status:'uploading',events:[],revision:0,length:180,labels:true};
    if(!m.recording){const x=await(await s3(m.key,'?uploads',{method:'POST',headers:{'content-type':m.mime}})).text();m.uploadId=xmlValue(x,'UploadId');if(!m.uploadId)throw new Error('Could not start upload.');}
    try{await put(m,'attribute_not_exists(id)');}catch(e){const saved=await get(id);if(!saved)throw e;if(m.uploadId)await s3(m.key,`?uploadId=${encodeURIComponent(m.uploadId)}`,{method:'DELETE'});return json({match:saved,chunkSize:CHUNK});}
    return json({match:m,chunkSize:CHUNK});
@@ -57,6 +57,13 @@ async function handleOwned(req:Request,owner:string){
   if(action==='credits' && req.method==='GET'){if(!m.renderMusic?.credits)return json({error:'Music credits are available after rendering.'},404);return new Response(m.renderMusic.credits,{headers:{'content-type':'text/plain; charset=utf-8','content-disposition':'attachment; filename="touchline-music-credits.txt"','cache-control':'no-store'}});}
   if(!action && req.method==='GET')return json({match:publicMatch(m,owner),sourceUrl:m.status!=='uploading'?await signed(m.key):null,reelUrl:m.reelKey?await signed(m.reelKey,'GET','?response-content-disposition=attachment%3B%20filename%3D%22touchline-reel.mp4%22'):null});
   if(action==='parts' && req.method==='GET')return json({parts:m.recording?Array.from({length:m.parts||0},(_,i)=>({number:i+1})):await parts(m)});
+  if(action==='background-plan' && req.method==='POST'){
+   if(m.status!=='uploading'||!m.backgroundUpload||m.recording)return json({error:'This is not an active background file upload.'},409);
+   const completed=new Set((await parts(m)).map(p=>p.number));
+   const remaining=Array.from({length:Math.ceil(m.size/CHUNK)},(_,i)=>i+1).filter(n=>!completed.has(n));
+   const plan=await Promise.all(remaining.map(async number=>({number,url:await signed(m.key,'PUT',`?partNumber=${number}&uploadId=${encodeURIComponent(m.uploadId!)}`,604800)})));
+   return json({chunkSize:CHUNK,parts:plan});
+  }
   if(action==='part' && req.method==='POST'){
    if(m.status!=='uploading')return json({error:'This upload is already finished.'},409);
    const b=await req.json() as any,n=b.number;if(!Number.isSafeInteger(n)||n<1||n>2000)return json({error:'Invalid upload part.'},400);

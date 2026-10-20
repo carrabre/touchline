@@ -4,6 +4,7 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from soundtracks import select_music,mix_music
+from background_uploads import finalize_background_upload
 from PIL import Image,ImageDraw,ImageFont
 logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s')
 REGION=os.getenv('AWS_DEFAULT_REGION','us-east-1');BUCKET=os.environ['MEDIA_BUCKET'];TABLE=os.environ['MATCH_TABLE'];ROOT=pathlib.Path(os.getenv('WORK_DIR','/data'))
@@ -225,6 +226,9 @@ def main():
    items=scan();now=time.time()
    for i in sorted(items,key=lambda i:float(i.get('updated',{'N':'0'})['N'])):
     stage=i['stage']['S']
+    if stage=='uploading':
+     finalize_background_upload(json.loads(i['doc']['S']),s3,ddb,BUCKET,TABLE)
+     continue
     if stage=='discarded':
      cleanup_discarded(json.loads(i['doc']['S']))
      continue
