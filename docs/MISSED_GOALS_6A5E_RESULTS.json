@@ -55,7 +55,56 @@
     "webProductionBuild": "passed"
   },
   "production": {
-    "status": "pending deployment and replay verification"
+    "workerDeploymentCommand": "4e03bea8-a002-4dc4-a167-b5d28bfcf791",
+    "workerDeployment": "Success",
+    "webDeployment": "dpl_FiJjrvJDGYWXitdLMtcX2fHjjiuJ",
+    "webStatus": "READY",
+    "revision": 1,
+    "status": "needs_review",
+    "confirmedGoals": 0,
+    "unconfirmedAttempts": 53,
+    "selectedClips": 0,
+    "reelCreated": false,
+    "frameWindows": 60,
+    "liveUncachedScoutCompleted": true,
+    "liveUncachedReviewCompleted": true,
+    "sourcePreserved": true,
+    "error": null,
+    "freshWorkerInference": {
+      "scout": {
+        "completedAt": "2026-10-20T22:23:04+00:00",
+        "usage": {
+          "inputTokens": 17424,
+          "outputTokens": 1301,
+          "totalTokens": 18725,
+          "cacheReadInputTokens": 0,
+          "cacheWriteInputTokens": 0
+        },
+        "events": 1
+      },
+      "review": {
+        "completedAt": "2026-10-20T22:23:35+00:00",
+        "usage": {
+          "inputTokens": 34646,
+          "outputTokens": 1278,
+          "totalTokens": 35924,
+          "cacheReadInputTokens": 0,
+          "cacheWriteInputTokens": 0
+        },
+        "worthwhile": false
+      }
+    },
+    "runtimeErrorLogScan": "No Vercel error logs found in the checked 10-minute production window.",
+    "browser": {
+      "attemptsDisplayed": 53,
+      "selected": 0,
+      "sourceDuration": 1198.031667,
+      "previewStartedAt": 4.2,
+      "previewAdvancedTo": 35.41609,
+      "mediaError": null,
+      "consoleErrors": 0,
+      "status": "Review needed"
+    }
   },
   "limit": "No human-confirmed goal timestamp or total score for this recording has been provided. Zero model-confirmed goals is not proof that none were scored. Unconfirmed attempts must remain unchecked and are not a goals-only reel."
 }
