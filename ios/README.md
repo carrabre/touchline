@@ -16,6 +16,6 @@ Requires Xcode 16.2+, iOS 17+, and XcodeGen. Run `xcodegen generate --spec ios/p
 
 ## Verification
 
-`xcodebuild -project ios/TouchlineUploader.xcodeproj -scheme TouchlineUploader -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build` validates the simulator build. Backend tests cover ownership, missing parts, interrupted completion and deletion races.
+`xcodebuild -project ios/TouchlineUploader.xcodeproj -scheme TouchlineUploader -sdk iphonesimulator -configuration Debug CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES build` validates the signed simulator build. An unsigned build compiled successfully but could not connect to the background-transfer daemon during verification; use ad-hoc signing for simulator runtime tests. Backend tests cover ownership, missing parts, interrupted completion and deletion races.
 
 The debug-only `--verify-background` launch argument reads only `Documents/Verification/input.mp4`, stages a test upload, and delays the earliest transfer start by 25 seconds so the app can be backgrounded first. Transfer audit records are local and contain no credentials. Confirm the source object and processing state in production, compare byte hashes, and record native background events. Simulator results do not establish locked-device behavior on a physical iPhone. A physical-device test must leave the app and lock the phone until AWS confirms completion.

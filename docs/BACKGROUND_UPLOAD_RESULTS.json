@@ -1,0 +1,34 @@
+{
+  "testedOn": "2026-10-20",
+  "nativeProcessSuspendedAt": 1792529470.805177,
+  "nativeProcessState": "Ts",
+  "partsSavedImmediatelyAfterSuspension": 0,
+  "physicalIPhoneTest": "Not run: iPhone unavailable",
+  "nativeUIBackgroundTest": "Not run: simulator UI control timed out",
+  "scope": "Signed iOS simulator background URLSession transferring to production S3 while uploader process was SIGSTOP suspended. Separate production API client exited after uploading parts and never called finish. Multipart ETags verify complete source byte integrity. This is not a physical-device lock-screen test.",
+  "results": [
+    {
+      "test": "native-process-suspended",
+      "id": "3828c97c106f64c5219227d571e4bbf8",
+      "stage": "analysis",
+      "bytes": 85750201,
+      "multipartIntegrityPassed": true,
+      "parts": 6,
+      "appFinishEndpointRequired": false
+    },
+    {
+      "test": "client-exited-without-finish",
+      "id": "7067ca2868ed18a1a053a75b1f8980cf",
+      "stage": "ready",
+      "bytes": 85750201,
+      "multipartIntegrityPassed": true,
+      "parts": 6,
+      "appFinishEndpointRequired": false
+    }
+  ],
+  "serverUploadSha256Passed": true,
+  "serverSourceSha256": "abbf1ff6c50a3c517c1437c0a25a03f0e0f51cd3f9fa0e4bd137d4e1350cc065",
+  "nativeDeviceBuildSigned": true,
+  "phoneRegisteredForDevelopment": true,
+  "deviceProfileExpires": "2027-08-03 22:27:39"
+}

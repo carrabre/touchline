@@ -176,7 +176,7 @@ struct PickedVideo: Transferable {
                 self.update(id){$0.completed.insert(number);if inactive{$0.completedInBackground+=1};if $0.completed.count == $0.partCount{$0.phase="Processing";$0.message="Uploaded. AWS will finalize and process the video without the app."}}
                 try? self.fm.removeItem(at:self.root.appendingPathComponent(id).appendingPathComponent("part-\(number)"))
                 self.audit("part-complete \(id) \(number) inactive=\(inactive)")
-            } else {self.update(id){$0.phase="Needs attention";$0.message="Transfer interrupted. Tap Resume to retry saved parts."};self.audit("part-error \(id) \(number) status=\(status)")}
+            } else {self.notice="Upload needs attention. Saved parts can be retried.";self.update(id){$0.phase="Needs attention";$0.message="Transfer interrupted. Tap Resume to retry saved parts."};self.audit("part-error \(id) \(number) status=\(status) domain=\((error as NSError?)?.domain ?? "none") code=\((error as NSError?)?.code ?? 0) message=\(error?.localizedDescription ?? "none")")}
         }
     }
     nonisolated func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
@@ -206,6 +206,7 @@ struct GameView: UIViewRepresentable {
 struct LibraryTarget:Identifiable{let id:String}
 struct ContentView: View {
     @StateObject private var uploads=UploadManager.shared
+    @Environment(\.scenePhase) private var scenePhase
     @State private var photo:PhotosPickerItem?
     @State private var files=false
     @State private var title=""
@@ -238,10 +239,12 @@ struct ContentView: View {
             .fileImporter(isPresented:$files,allowedContentTypes:[.movie,.video]){result in
                 if case let .success(url)=result{let access=url.startAccessingSecurityScopedResource();Task{await uploads.importVideo(url,title:title);if access{url.stopAccessingSecurityScopedResource()}}}
             }
+            .onChange(of:scenePhase){_,phase in if phase == .active {Task{await uploads.refresh()}}}
             .onChange(of:photo){_,item in Task{do{if let video=try await item?.loadTransferable(type:PickedVideo.self){await uploads.importVideo(video.url,title:title);try? FileManager.default.removeItem(at:video.url)}}catch{uploads.notice=error.localizedDescription}}}
             .sheet(item:$game){target in GameView(cookie:uploads.cookie(),id:target.id.isEmpty ? nil:target.id).ignoresSafeArea(edges:.bottom)}
             .task{
                 #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--verify-background") && !uploads.jobs.isEmpty {await uploads.schedule(uploads.jobs[0].id)}
                 if ProcessInfo.processInfo.arguments.contains("--verify-background") && uploads.jobs.isEmpty {
                     let file=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Verification/input.mp4")
                     if FileManager.default.fileExists(atPath:file.path){await uploads.importVideo(file,title:"Background transfer verification")}

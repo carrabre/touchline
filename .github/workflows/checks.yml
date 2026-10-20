@@ -23,3 +23,9 @@ jobs:
       - run: node --experimental-strip-types --test tests/*.mjs
       - run: python -m unittest discover -s tests -p 'test_*.py'
       - run: npm run build
+
+  native-build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: xcodebuild -project ios/TouchlineUploader.xcodeproj -scheme TouchlineUploader -sdk iphonesimulator -configuration Debug CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES build
