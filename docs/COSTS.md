@@ -15,3 +15,5 @@ Pricing reference: https://aws.amazon.com/bedrock/pricing/ and https://aws.amazo
 Token assumptions: https://docs.aws.amazon.com/nova/latest/nova2-userguide/using-multimodal-models.html
 
 After production tests, replace planning numbers with `metrics.modelUsage`, `analysisSeconds`, `renderSeconds`, output sizes and attributable AWS charges.
+
+Fixed indoor games can use the native-detail RF-DETR scan plus two independent Opus 5.5 image reviews. This adds CPU time and image tokens; it has not been assigned a flat per-upload price. `metrics.netModelUsage` records review usage separately from the general fallback. A public upload is processed using the deployment owner’s AWS account.

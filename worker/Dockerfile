@@ -3,7 +3,8 @@ RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.l
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY worker.py music.py soundtracks.py background_uploads.py frame_goals.py ./
+COPY worker.py music.py soundtracks.py background_uploads.py frame_goals.py net_goals.py ./
+COPY MODEL_NOTICE.md RF_DETR_LICENSE.txt ./
 COPY tracks ./tracks
 ENV AWS_DEFAULT_REGION=us-east-1 PYTHONUNBUFFERED=1
 CMD ["python", "worker.py"]

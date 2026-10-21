@@ -6,6 +6,7 @@ from botocore.exceptions import ClientError
 from soundtracks import select_music,mix_music
 from background_uploads import finalize_background_upload
 import frame_goals
+import net_goals
 from PIL import Image,ImageDraw,ImageFont
 logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s')
 REGION=os.getenv('AWS_DEFAULT_REGION','us-east-1');BUCKET=os.environ['MEDIA_BUCKET'];TABLE=os.environ['MATCH_TABLE'];ROOT=pathlib.Path(os.getenv('WORK_DIR','/data'))
@@ -139,6 +140,57 @@ def render(source,directory,m,clips):
  if abs(outduration-offset)>1:raise RuntimeError('Rendered duration failed validation.')
  return final,outduration,clips
 
+def analyze_nets(m,lease,source,directory,duration,metrics):
+ prefix=f"analysis/{m['id']}/{net_goals.VERSION}"
+ m['note']='Locating both goals for ball tracking';lease=heartbeat(m,lease,'analysis')
+ scene=load_checkpoint(prefix+'/scene.json')
+ if scene is None:
+  scene=frame_goals.classify(model,source,directory/'net-scene',duration);checkpoint(prefix+'/scene.json',scene)
+ calibration=load_checkpoint(prefix+'/calibration.json')
+ if calibration is None:
+  calibration=net_goals.calibrate(model,source,directory/'net-calibration',duration,scene);checkpoint(prefix+'/calibration.json',calibration)
+ metrics['netCalibration']=calibration
+ if not calibration.get('supported'):return None,lease
+ detector=net_goals.BallDetector(net_goals.ensure_model(s3,BUCKET,ROOT));rows=[];frames=0;usage={'inputTokens':0,'outputTokens':0}
+ for start in range(0,math.ceil(duration),30):
+  ck=f'{prefix}/scan-{start}.json';result=load_checkpoint(ck)
+  if result is not None and (result.get('version')!=net_goals.VERSION or result.get('modelSHA256')!=net_goals.SHA256 or result.get('fps')!=net_goals.FPS):result=None
+  m['note']=f'Tracking the ball at both goals: {int(start*100/duration)}%';lease=heartbeat(m,lease,'analysis')
+  if result is None:
+   work=directory/f'net-scan-{start}'
+   result=net_goals.scan_segment(detector,source,work,start,min(30,duration-start),calibration);checkpoint(ck,result);shutil.rmtree(work,ignore_errors=True)
+  rows.extend(result['rows']);frames+=result['frames'];m['analyzed']=min(duration,start+30);lease=heartbeat(m,lease,'analysis')
+ candidates=net_goals.candidates(rows);events=[dict(e) for e in m.get('events',[]) if e.get('manual')]
+ def inspect_net(e):
+  identity=f"{e['side']}-{e['time']:.4f}";ck=f'{prefix}/review-{identity}.json';result=load_checkpoint(ck)
+  if result is not None and (result.get('candidate')!=e or result.get('model')!=net_goals.MODEL or result.get('secondView') is not False):result=None
+  if result is None:
+   result=net_goals.verify(model,source,directory/f'net-review-{identity}',e,duration,calibration);checkpoint(ck,result)
+  second=None;data=result['data']
+  if data.get('goal') and not data.get('uncertain'):
+   ck2=f'{prefix}/confirm-{identity}.json';second=load_checkpoint(ck2)
+   if second is not None and (second.get('candidate')!=e or second.get('model')!=net_goals.MODEL or second.get('secondView') is not True):second=None
+   if second is None:
+    second=net_goals.verify(model,source,directory/f'net-confirm-{identity}',e,duration,calibration,second_view=True);checkpoint(ck2,second)
+  return e,result,second
+ # Bounded batches keep paid requests and transient frame data under control.
+ for index,(e,result,second) in enumerate(frame_goals.parallel_results(candidates,inspect_net)):
+  m['note']=f'Verifying ball-in-net evidence: {index+1} of {len(candidates)}';lease=heartbeat(m,lease,'analysis')
+  for result_usage in [result]+([second] if second else []):
+   for k in usage:usage[k]+=result_usage.get('usage',{}).get(k,0)
+  data=result['data'];confirmed=second is not None and net_goals.agreement(result,second)
+  if not confirmed and not (data.get('goal') or data.get('uncertain')):continue
+  t=float(data['time']) if confirmed else float(e['time'])
+  event={'id':uuid.uuid5(uuid.NAMESPACE_URL,f"{m['id']}:net:{e['side']}:{t:.3f}").hex,'time':round(t,1),'start':round(max(0,t-15),1),'end':round(min(duration,t+20),1),'kind':'goal' if confirmed else 'possible_goal','confidence':float(data.get('confidence',.3)) if confirmed else min(.49,float(data.get('confidence',.3))),'evidence':str(data.get('evidence',''))[:700],'included':confirmed,'netSide':e['side'],'netEpisode':e['episode']}
+  if confirmed:event.update({'verified':True,'verification':{'method':net_goals.VERSION,'models':[net_goals.MODEL],'independentViews':2,'evidenceTimes':data['evidenceTimes']}})
+  else:event['reviewOutcome']='unconfirmed'
+  # Repeated views of the same resting ball do not become additional goals.
+  previous=next((x for x in events if confirmed and x.get('verified') and x.get('netSide')==e['side'] and abs(x['time']-t)<=2),None)
+  if previous:continue
+  events.append(event)
+ metrics.update({'netAnalysisVersion':net_goals.VERSION,'ballModelSHA256':net_goals.SHA256,'ballScanFPS':net_goals.FPS,'ballScanFrames':frames,'ballScanCoverageSeconds':duration,'netCandidates':len(candidates),'netVerifiedGoals':sum(e.get('verified',False) for e in events),'netModelUsage':usage})
+ return frame_goals.retain_review_events(sorted(events,key=lambda e:e['time'])),lease
+
 def process(item,lease):
  m=json.loads(item['doc']['S']);m['status']='ingestion';directory=ROOT/m['id'];directory.mkdir(exist_ok=True);source=directory/'source';started=time.time();metrics=m.get('metrics',{});metrics.setdefault('firstStarted',started);metrics['visionVersion']=VERSION
  try:
@@ -156,77 +208,81 @@ def process(item,lease):
    else:s3.download_file(BUCKET,m['key'],str(directory/'download.tmp'));(directory/'download.tmp').rename(source)
   info,duration,v=probe(source);m['duration']=duration;m['metrics']=metrics
   if not m.get('analysisComplete'):
-   all_events=[];usage={'inputTokens':0,'outputTokens':0};coverage=0
-   for index,start in enumerate(range(0,math.ceil(duration),170)):
-    actual=min(180,duration-start);ck=f"analysis/{m['id']}/{VERSION}/scout-{index}.json";result=load_checkpoint(ck)
-    m['note']=f'Reviewing {start//60}:{start%60:02d} to {int((start+actual)//60)}:{int((start+actual)%60):02d}';m['analyzed']=coverage;lease=heartbeat(m,lease,'analysis')
-    if not result:
-     clip=directory/'analysis.mp4';extract(source,clip,start,actual);data,tokens=vision(clip,SCOUT,LITE);result={'start':start,'duration':actual,'data':data,'usage':tokens};checkpoint(ck,result)
-    for k in usage:usage[k]+=result['usage'].get(k,0)
-    if not isinstance(result['data'].get('events'),list):raise RuntimeError('Analysis schema invalid.')
-    for e in result['data']['events']:
-     try:t=float(e['time']);c=float(e['confidence'])
-     except (KeyError,TypeError,ValueError):continue
-     if not (0<=t<actual and .3<=c<=1):continue
-     if e.get('kind') not in ['goal','save','close_chance','impressive_play','possible_goal']:continue
-     all_events.append({'time':round(start+t,1),'kind':e['kind'],'confidence':c,'evidence':str(e.get('evidence',''))[:700]})
-    coverage=max(coverage,min(duration,start+actual));m['analyzed']=coverage;lease=heartbeat(m,lease,'analysis')
-   scene=None
-   if not all_events:
-    # A wide video view can hide small indoor goals. Inspect labeled high-detail
-    # frames before declaring that there are no scoring candidates.
-    prefix=f"analysis/{m['id']}/{frame_goals.VERSION}"
-    scene=load_checkpoint(prefix+'/scene.json')
-    m['note']='Inspecting small goals and finer details';lease=heartbeat(m,lease,'analysis')
-    if not scene:
-     scene=frame_goals.classify(model,source,directory/'scene',duration);checkpoint(prefix+'/scene.json',scene)
-    metrics['frameAnalysisVersion']=frame_goals.VERSION;metrics['frameModel']=frame_goals.MODEL
-    def inspect_window(job):
-     index,(start,length)=job;ck=f'{prefix}/scout-{index}.json';result=load_checkpoint(ck)
+   net_events,lease=analyze_nets(m,lease,source,directory,duration,metrics)
+   if net_events is not None:
+    m['events']=net_events;m['analysisComplete']=True;metrics['analysisSeconds']=round(time.time()-started,2);lease=heartbeat(m,lease,'selection')
+   else:
+    all_events=[];usage={'inputTokens':0,'outputTokens':0};coverage=0
+    for index,start in enumerate(range(0,math.ceil(duration),170)):
+     actual=min(180,duration-start);ck=f"analysis/{m['id']}/{VERSION}/scout-{index}.json";result=load_checkpoint(ck)
+     m['note']=f'Reviewing {start//60}:{start%60:02d} to {int((start+actual)//60)}:{int((start+actual)%60):02d}';m['analyzed']=coverage;lease=heartbeat(m,lease,'analysis')
      if not result:
-      result=frame_goals.scout(model,source,directory/f'frames-{index}',start,length,scene);checkpoint(ck,result)
+      clip=directory/'analysis.mp4';extract(source,clip,start,actual);data,tokens=vision(clip,SCOUT,LITE);result={'start':start,'duration':actual,'data':data,'usage':tokens};checkpoint(ck,result)
+     for k in usage:usage[k]+=result['usage'].get(k,0)
+     if not isinstance(result['data'].get('events'),list):raise RuntimeError('Analysis schema invalid.')
+     for e in result['data']['events']:
+      try:t=float(e['time']);c=float(e['confidence'])
+      except (KeyError,TypeError,ValueError):continue
+      if not (0<=t<actual and .3<=c<=1):continue
+      if e.get('kind') not in ['goal','save','close_chance','impressive_play','possible_goal']:continue
+      all_events.append({'time':round(start+t,1),'kind':e['kind'],'confidence':c,'evidence':str(e.get('evidence',''))[:700]})
+     coverage=max(coverage,min(duration,start+actual));m['analyzed']=coverage;lease=heartbeat(m,lease,'analysis')
+    scene=None
+    if not all_events:
+     # A wide video view can hide small indoor goals. Inspect labeled high-detail
+     # frames before declaring that there are no scoring candidates.
+     prefix=f"analysis/{m['id']}/{frame_goals.VERSION}"
+     scene=load_checkpoint(prefix+'/scene.json')
+     m['note']='Inspecting small goals and finer details';lease=heartbeat(m,lease,'analysis')
+     if not scene:
+      scene=frame_goals.classify(model,source,directory/'scene',duration);checkpoint(prefix+'/scene.json',scene)
+     metrics['frameAnalysisVersion']=frame_goals.VERSION;metrics['frameModel']=frame_goals.MODEL
+     def inspect_window(job):
+      index,(start,length)=job;ck=f'{prefix}/scout-{index}.json';result=load_checkpoint(ck)
+      if not result:
+       result=frame_goals.scout(model,source,directory/f'frames-{index}',start,length,scene);checkpoint(ck,result)
+      return result
+     jobs=list(enumerate(frame_goals.windows(duration)))
+     for index,result in enumerate(frame_goals.parallel_results(jobs,inspect_window)):
+      for k in usage:usage[k]+=result.get('usage',{}).get(k,0)
+      all_events.extend(frame_goals.events(result));metrics['frameWindows']=index+1
+      m['note']=f'Checking finer details: {index+1} of {len(jobs)} sections'
+      lease=heartbeat(m,lease,'analysis')
+    candidates=dedup(all_events);events=[]
+    # Every goal candidate gets an independent review; only optional action is capped.
+    candidates=review_candidates(candidates)
+    def inspect_candidate(e):
+     ck=f"analysis/{m['id']}/{VERSION}/deep-{frame_goals.VERSION}-{int(e['time']*10)}.json";result=load_checkpoint(ck)
+     if not result:
+      result=frame_goals.review(model,source,directory/f"review-{int(e['time']*10)}",e['time'],duration,scene);checkpoint(ck,result)
      return result
-    jobs=list(enumerate(frame_goals.windows(duration)))
-    for index,result in enumerate(frame_goals.parallel_results(jobs,inspect_window)):
-     for k in usage:usage[k]+=result.get('usage',{}).get(k,0)
-     all_events.extend(frame_goals.events(result));metrics['frameWindows']=index+1
-     m['note']=f'Checking finer details: {index+1} of {len(jobs)} sections'
-     lease=heartbeat(m,lease,'analysis')
-   candidates=dedup(all_events);events=[]
-   # Every goal candidate gets an independent review; only optional action is capped.
-   candidates=review_candidates(candidates)
-   def inspect_candidate(e):
-    ck=f"analysis/{m['id']}/{VERSION}/deep-{frame_goals.VERSION}-{int(e['time']*10)}.json";result=load_checkpoint(ck)
-    if not result:
-     result=frame_goals.review(model,source,directory/f"review-{int(e['time']*10)}",e['time'],duration,scene);checkpoint(ck,result)
-    return result
-   detailed_results=iter(frame_goals.parallel_results([e for e in candidates if e.get('frameScout')],inspect_candidate))
-   for idx,e in enumerate(candidates):
-    detailed=e.get('frameScout',False)
-    start,length=review_window(e['time'],duration)
-    review_version=frame_goals.VERSION if detailed else REVIEW_VERSION
-    ck=f"analysis/{m['id']}/{VERSION}/deep-{review_version}-{int(e['time']*10)}.json";result=None if detailed else load_checkpoint(ck);m['note']=f'Checking candidate {idx+1} of {len(candidates)} at {int(e["time"]//60)}:{int(e["time"]%60):02d}';lease=heartbeat(m,lease,'analysis')
-    if not result:
-     if detailed:
-      result=next(detailed_results)
-     else:
-      clip=directory/'analysis.mp4';extract(source,clip,start,length,True);data,tokens=vision(clip,DEEP,PRO,mode="review")
-      if data['worthwhile'] and not 0<=float(data['time'])<=length*2:raise RuntimeError('Goal review timestamp is outside its video; retrying candidate.')
-      result={'data':data,'usage':tokens}
-     checkpoint(ck,result)
-    for k in usage:usage[k]+=result['usage'].get(k,0)
-    data=result['data']
-    unconfirmed=not data.get('worthwhile') and detailed
-    if not data.get('worthwhile') and not unconfirmed:continue
-    if unconfirmed:
-     # Failure to confirm from a distant/obscured view does not prove no goal.
-     # Keep the original attack available, unchecked, for the uploader to review.
-     data={**data,'time':e['time'],'kind':'possible_goal','confidence':min(e['confidence'],.49),'evidence':'Unconfirmed scoring attempt. '+str(data.get('evidence','The goal outcome is unclear from this camera view.'))}
-    t=float(data['time']) if detailed else start+max(0,min(length,float(data.get('time',24))/2));confidence=max(0,min(1,float(data.get('confidence',.5))));kind=data.get('kind','close_chance')
-    if kind not in ['goal','save','close_chance','impressive_play','possible_goal']:continue
-    if kind=='goal' and confidence<.85:kind='possible_goal';confidence=min(confidence,.65)
-    event={'id':uuid.uuid5(uuid.NAMESPACE_URL,f'{m["id"]}:{t:.0f}').hex,'time':round(t,1),'start':round(max(0,t-15),1),'end':round(min(duration,t+20),1),'kind':kind,'confidence':confidence,'evidence':str(data.get('evidence',''))[:700],'included':confidence>=.75 and kind!='possible_goal'};event.update({'reviewOutcome':'unconfirmed'} if unconfirmed else {});events.append(event)
-   m['events']=frame_goals.retain_review_events(dedup(events));metrics['reviewCandidatesTotal']=sum(e['kind']=='possible_goal' for e in events);m['analysisComplete']=True;metrics['modelUsage']=usage;metrics['scoutCandidates']=len(all_events);metrics['deepCandidates']=len(candidates);metrics['analysisSeconds']=round(time.time()-started,2);lease=heartbeat(m,lease,'selection')
+    detailed_results=iter(frame_goals.parallel_results([e for e in candidates if e.get('frameScout')],inspect_candidate))
+    for idx,e in enumerate(candidates):
+     detailed=e.get('frameScout',False)
+     start,length=review_window(e['time'],duration)
+     review_version=frame_goals.VERSION if detailed else REVIEW_VERSION
+     ck=f"analysis/{m['id']}/{VERSION}/deep-{review_version}-{int(e['time']*10)}.json";result=None if detailed else load_checkpoint(ck);m['note']=f'Checking candidate {idx+1} of {len(candidates)} at {int(e["time"]//60)}:{int(e["time"]%60):02d}';lease=heartbeat(m,lease,'analysis')
+     if not result:
+      if detailed:
+       result=next(detailed_results)
+      else:
+       clip=directory/'analysis.mp4';extract(source,clip,start,length,True);data,tokens=vision(clip,DEEP,PRO,mode="review")
+       if data['worthwhile'] and not 0<=float(data['time'])<=length*2:raise RuntimeError('Goal review timestamp is outside its video; retrying candidate.')
+       result={'data':data,'usage':tokens}
+      checkpoint(ck,result)
+     for k in usage:usage[k]+=result['usage'].get(k,0)
+     data=result['data']
+     unconfirmed=not data.get('worthwhile') and detailed
+     if not data.get('worthwhile') and not unconfirmed:continue
+     if unconfirmed:
+      # Failure to confirm from a distant/obscured view does not prove no goal.
+      # Keep the original attack available, unchecked, for the uploader to review.
+      data={**data,'time':e['time'],'kind':'possible_goal','confidence':min(e['confidence'],.49),'evidence':'Unconfirmed scoring attempt. '+str(data.get('evidence','The goal outcome is unclear from this camera view.'))}
+     t=float(data['time']) if detailed else start+max(0,min(length,float(data.get('time',24))/2));confidence=max(0,min(1,float(data.get('confidence',.5))));kind=data.get('kind','close_chance')
+     if kind not in ['goal','save','close_chance','impressive_play','possible_goal']:continue
+     if kind=='goal' and confidence<.85:kind='possible_goal';confidence=min(confidence,.65)
+     event={'id':uuid.uuid5(uuid.NAMESPACE_URL,f'{m["id"]}:{t:.0f}').hex,'time':round(t,1),'start':round(max(0,t-15),1),'end':round(min(duration,t+20),1),'kind':kind,'confidence':confidence,'evidence':str(data.get('evidence',''))[:700],'included':confidence>=.75 and kind!='possible_goal'};event.update({'reviewOutcome':'unconfirmed'} if unconfirmed else {});events.append(event)
+    m['events']=frame_goals.retain_review_events(dedup(events));metrics['reviewCandidatesTotal']=sum(e['kind']=='possible_goal' for e in events);m['analysisComplete']=True;metrics['modelUsage']=usage;metrics['scoutCandidates']=len(all_events);metrics['deepCandidates']=len(candidates);metrics['analysisSeconds']=round(time.time()-started,2);lease=heartbeat(m,lease,'selection')
   clips=choose(m['events'],m['length']);m['note']=f'{len(clips)} sequences selected';lease=heartbeat(m,lease,'selection')
   if not clips:
    m['note']='Goals could not be confirmed from this camera view. Preview the unconfirmed attempts before selecting clips.' if metrics.get('frameAnalysisVersion') and not any(e['kind']=='goal' and e['confidence']>=.85 for e in m['events']) else 'No clips selected. Review moments or add a goal.';m['error']=None;lease=heartbeat(m,lease,'needs_review');return
