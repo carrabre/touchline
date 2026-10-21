@@ -119,7 +119,7 @@ def filter_sightings(rows,calibration,width,height):
 
 def scan_segment(detector,source,directory,start,length,calibration):
  directory=pathlib.Path(directory);directory.mkdir(parents=True,exist_ok=True);rows=[];frame_count=0
- cap=cv2.VideoCapture(str(source));width=int(cap.get(cv2.CAP_PROP_FRAME_WIDTH));height=int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT));cap.release()
+ cap=cv2.VideoCapture(str(source),cv2.CAP_FFMPEG,[cv2.CAP_PROP_N_THREADS,1]);width=int(cap.get(cv2.CAP_PROP_FRAME_WIDTH));height=int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT));cap.release()
  # One native decode pass for both goals. fps precedes crop, no wide-view downscale.
  count=math.ceil(length*FPS)
  filters=['[0:v]fps='+str(FPS)+':start_time=0,split=2[a][b]']
@@ -129,7 +129,7 @@ def scan_segment(detector,source,directory,start,length,calibration):
  for i in range(2):args+=['-map',f'[o{i}]','-an','-frames:v',str(count),'-c:v','libx264','-threads','1','-preset','ultrafast','-crf','16','-y',str(directory/f'net-{i}.mp4')]
  subprocess.run(args,capture_output=True,check=True,timeout=600)
  for side,box in enumerate(boxes):
-  cap=cv2.VideoCapture(str(directory/f'net-{side}.mp4'));index=0
+  cap=cv2.VideoCapture(str(directory/f'net-{side}.mp4'),cv2.CAP_FFMPEG,[cv2.CAP_PROP_N_THREADS,1]);index=0
   while True:
    ok,image=cap.read()
    if not ok:break
@@ -166,7 +166,7 @@ def candidates(rows,gap=4):
 def verify(client,source,directory,candidate,duration,calibration,model_id=MODEL,second_view=False):
  directory=pathlib.Path(directory);directory.mkdir(parents=True,exist_ok=True)
  # Keep the full court for orientation, then dense close-ups plus retrieval.
- cap=cv2.VideoCapture(str(source));width=int(cap.get(cv2.CAP_PROP_FRAME_WIDTH));height=int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+ cap=cv2.VideoCapture(str(source),cv2.CAP_FFMPEG,[cv2.CAP_PROP_N_THREADS,1]);width=int(cap.get(cv2.CAP_PROP_FRAME_WIDTH));height=int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
  t=float(candidate['peakTime']);start=max(0,float(candidate['time'])-2);end=min(duration,float(candidate['lastSeen'])+4)
  # Split long episodes by caller; do not silently sample away a second goal.
  if end-start>24:raise RuntimeError('Net episode exceeds dense review window.')
@@ -195,7 +195,7 @@ def verify(client,source,directory,candidate,duration,calibration,model_id=MODEL
  # frames for the requested overview/dense sampling grid.
  for old in directory.glob('*.jpg'):old.unlink()
  actual_start=start+offset;decode_fps=5 if second_view else 8
- subprocess.run(['ffmpeg','-nostdin','-v','error','-threads','1','-ss',str(actual_start),'-i',str(source),'-t',str(end-actual_start),'-vf',f'crop={c-a}:{d-b}:{a}:{b},fps={decode_fps}:start_time=0,scale=900:-2','-q:v','2','-y',str(directory/'%04d.jpg')],capture_output=True,check=True,timeout=600)
+ subprocess.run(['ffmpeg','-nostdin','-v','error','-threads','1','-ss',str(actual_start),'-i',str(source),'-t',str(end-actual_start),'-filter_threads','1','-vf',f'crop={c-a}:{d-b}:{a}:{b},fps={decode_fps}:start_time=0,scale=900:-2','-threads','1','-q:v','2','-y',str(directory/'%04d.jpg')],capture_output=True,check=True,timeout=600)
  files=sorted(directory.glob('*.jpg'));expected=math.ceil((end-actual_start)*decode_fps)
  if len(files)<max(1,expected-1):raise RuntimeError('Incomplete net verification decode.')
  for index in sorted(set(round((sec-actual_start)*decode_fps) for sec in times)):
