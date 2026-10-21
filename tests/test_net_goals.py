@@ -62,4 +62,15 @@ class NetGoalTests(unittest.TestCase):
   self.assertEqual(n.filter_sightings([ball,head,passing],cal,1000,500),[ball])
   scaled={**ball,'box':[v*2 for v in ball['box']]}
   self.assertEqual(n.filter_sightings([scaled],cal,2000,1000),[scaled])
+ def test_right_goal_review_includes_the_incoming_court_side(self):
+  region={'anchor':[1181,519,1336,638],'goalHeight':119,'bounds':[1109,435,1536,715]}
+  wide=n.review_region(region,[1536,864]);x,y,r,b=region['anchor'];a,top,c,bottom=wide['bounds']
+  self.assertGreater(x-a,c-r);self.assertLess(a,1100)
+  close=n.review_region(region,[1536,864],True);self.assertLess(close['bounds'][2]-close['bounds'][0],c-a)
+ def test_uncertainty_does_not_veto_two_independent_direct_positives(self):
+  uncertain={'data':{'goal':False,'uncertain':True,'confidence':.35,'time':None,'evidenceTimes':[]}}
+  first={'data':{'goal':True,'uncertain':False,'confidence':.7,'time':318.4,'evidenceTimes':[318.4]}}
+  second={'data':{'goal':True,'uncertain':False,'confidence':.8,'time':318.5,'evidenceTimes':[318.5]}}
+  self.assertIsNone(n.consensus([uncertain,first]));self.assertEqual(n.consensus([uncertain,first,second]),[first,second])
+  self.assertIsNone(n.consensus([uncertain,uncertain,first]))
 if __name__=='__main__':unittest.main()

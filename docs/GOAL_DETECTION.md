@@ -14,18 +14,24 @@ ball-first pipeline before the general video scout:
    and **2fps** context throughout each incident plus **8fps** goal close-ups around the strongest ball sighting, distinguishing the opening from side/rear net.
    Direct ball-in-net evidence is sufficient, including a ball that rebounds out;
    celebrations, a scoreboard and formal kickoffs are not required.
-4. A separate, blinded Opus 5.5 request must confirm the same incident using a tighter goal crop and a different 5fps frame grid. These are two independent requests to the same model, not two different vision models.
-   Both must report visible evidence, valid source timestamps, confidence >=0.6,
-   and no uncertainty. Confidence is a model score, not calibrated accuracy.
-   Only agreement becomes an automatically selected, verified goal. Disagreements
-   and obscured outcomes remain unchecked; saves/misses are rejected.
+4. Every positive **or uncertain** first result gets a separate, blinded 5fps
+   close-up check. The right goal's wide crop includes the **left/court side** so
+   the incoming shot can be traced through the opening, rather than cropping
+   away the approach and showing unnecessary rear wall.
+5. Conflicting results with a positive observation receive a third check, with
+   15fps detail around the automatically nominated moment. Selection requires
+   **two coherent, direct positive checks**, each with valid source timestamps,
+   confidence >=0.6 and no uncertainty. An uncertain view does not veto two clear
+   positive observations. These are independent requests/views of the same Opus
+   5.5 model, not different vision models; scores are not calibrated accuracy.
+   Unresolved incidents stay unchecked and clear saves/misses are rejected.
 
 Long incidents are split without dropping detections. Repeated views of the same
 ball do not become extra goals. Goal count is never capped by a reel's target
 length; thirty selected goals remain supported. Up to seventy uncertain moments
 are retained separately, leaving editor capacity for thirty goals.
 
-Each scan segment and review has a versioned S3 checkpoint. Revision/lease checks
+Each scan segment and review has a versioned S3 checkpoint. Detector and verifier versions are separate, so a crop/review fix can reuse unchanged native ball scans. Revision/lease checks
 protect concurrent edits/deletion; a retry resumes completed analysis. The worker
 runs with two CPUs and 4GB RAM. Native-detail ball scanning can take longer than
 real time; processing continues on AWS after the upload finishes.

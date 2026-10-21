@@ -141,20 +141,20 @@ def render(source,directory,m,clips):
  return final,outduration,clips
 
 def analyze_nets(m,lease,source,directory,duration,metrics):
- prefix=f"analysis/{m['id']}/{net_goals.VERSION}"
+ prefix=f"analysis/{m['id']}/{net_goals.VERSION}";scan_prefix=f"analysis/{m['id']}/{net_goals.DETECTOR_VERSION}"
  m['note']='Locating both goals for ball tracking';lease=heartbeat(m,lease,'analysis')
- scene=load_checkpoint(prefix+'/scene.json')
+ scene=load_checkpoint(scan_prefix+'/scene.json')
  if scene is None:
-  scene=frame_goals.classify(model,source,directory/'net-scene',duration);checkpoint(prefix+'/scene.json',scene)
- calibration=load_checkpoint(prefix+'/calibration.json')
+  scene=frame_goals.classify(model,source,directory/'net-scene',duration);checkpoint(scan_prefix+'/scene.json',scene)
+ calibration=load_checkpoint(scan_prefix+'/calibration.json')
  if calibration is None:
-  calibration=net_goals.calibrate(model,source,directory/'net-calibration',duration,scene);checkpoint(prefix+'/calibration.json',calibration)
+  calibration=net_goals.calibrate(model,source,directory/'net-calibration',duration,scene);checkpoint(scan_prefix+'/calibration.json',calibration)
  metrics['netCalibration']=calibration
  if not calibration.get('supported'):return None,lease
  detector=net_goals.BallDetector(net_goals.ensure_model(s3,BUCKET,ROOT));rows=[];frames=0;usage={'inputTokens':0,'outputTokens':0}
  for start in range(0,math.ceil(duration),30):
-  ck=f'{prefix}/scan-{start}.json';result=load_checkpoint(ck)
-  if result is not None and (result.get('version')!=net_goals.VERSION or result.get('modelSHA256')!=net_goals.SHA256 or result.get('fps')!=net_goals.FPS):result=None
+  ck=f'{scan_prefix}/scan-{start}.json';result=load_checkpoint(ck)
+  if result is not None and (result.get('version')!=net_goals.DETECTOR_VERSION or result.get('modelSHA256')!=net_goals.SHA256 or result.get('fps')!=net_goals.FPS):result=None
   m['note']=f'Tracking the ball at both goals: {int(start*100/duration)}%';lease=heartbeat(m,lease,'analysis')
   if result is None:
    work=directory/f'net-scan-{start}'
@@ -162,27 +162,35 @@ def analyze_nets(m,lease,source,directory,duration,metrics):
   rows.extend(result['rows']);frames+=result['frames'];m['analyzed']=min(duration,start+30);lease=heartbeat(m,lease,'analysis')
  candidates=net_goals.candidates(rows);events=[dict(e) for e in m.get('events',[]) if e.get('manual')]
  def inspect_net(e):
-  identity=f"{e['side']}-{e['time']:.4f}";ck=f'{prefix}/review-{identity}.json';result=load_checkpoint(ck)
-  if result is not None and (result.get('candidate')!=e or result.get('model')!=net_goals.MODEL or result.get('secondView') is not False):result=None
-  if result is None:
-   result=net_goals.verify(model,source,directory/f'net-review-{identity}',e,duration,calibration);checkpoint(ck,result)
-  second=None;data=result['data']
-  if data.get('goal') and not data.get('uncertain'):
-   ck2=f'{prefix}/confirm-{identity}.json';second=load_checkpoint(ck2)
-   if second is not None and (second.get('candidate')!=e or second.get('model')!=net_goals.MODEL or second.get('secondView') is not True):second=None
-   if second is None:
-    second=net_goals.verify(model,source,directory/f'net-confirm-{identity}',e,duration,calibration,second_view=True);checkpoint(ck2,second)
-  return e,result,second
+  identity=f"{e['side']}-{e['time']:.4f}"
+  def check(tag,candidate,second_view=False,tie_break=False):
+   ck=f'{prefix}/{tag}-{identity}.json';result=load_checkpoint(ck)
+   if result is not None and (result.get('candidate')!=candidate or result.get('model')!=net_goals.MODEL or result.get('secondView') is not second_view or result.get('tieBreak',False) is not tie_break):result=None
+   if result is None:
+    result=net_goals.verify(model,source,directory/f'net-{tag}-{identity}',candidate,duration,calibration,second_view=second_view,tie_break=tie_break);checkpoint(ck,result)
+   return result
+  results=[check('review',e)];data=results[0]['data']
+  # An uncertain first view must not veto a visible goal in a clearer crop.
+  if data.get('goal') or data.get('uncertain'):
+   results.append(check('confirm',e,second_view=True))
+  if not net_goals.consensus(results):
+   positive=next((r for r in results if r['data'].get('goal') and not r['data'].get('uncertain')),None)
+   if positive:
+    nomination={**e,'peakTime':float(positive['data']['time'])}
+    results.append(check('tie',nomination,tie_break=True))
+  return e,results
  # Bounded batches keep paid requests and transient frame data under control.
- for index,(e,result,second) in enumerate(frame_goals.parallel_results(candidates,inspect_net)):
+ for index,(e,results) in enumerate(frame_goals.parallel_results(candidates,inspect_net)):
   m['note']=f'Verifying ball-in-net evidence: {index+1} of {len(candidates)}';lease=heartbeat(m,lease,'analysis')
-  for result_usage in [result]+([second] if second else []):
-   for k in usage:usage[k]+=result_usage.get('usage',{}).get(k,0)
-  data=result['data'];confirmed=second is not None and net_goals.agreement(result,second)
-  if not confirmed and not (data.get('goal') or data.get('uncertain')):continue
+  for result in results:
+   for k in usage:usage[k]+=result.get('usage',{}).get(k,0)
+  agreed=net_goals.consensus(results);confirmed=agreed is not None
+  if not confirmed and not any(r['data'].get('goal') or r['data'].get('uncertain') for r in results):continue
+  data=agreed[0]['data'] if confirmed else results[0]['data']
   t=float(data['time']) if confirmed else float(e['time'])
-  event={'id':uuid.uuid5(uuid.NAMESPACE_URL,f"{m['id']}:net:{e['side']}:{t:.3f}").hex,'time':round(t,1),'start':round(max(0,t-15),1),'end':round(min(duration,t+20),1),'kind':'goal' if confirmed else 'possible_goal','confidence':float(data.get('confidence',.3)) if confirmed else min(.49,float(data.get('confidence',.3))),'evidence':str(data.get('evidence',''))[:700],'included':confirmed,'netSide':e['side'],'netEpisode':e['episode']}
-  if confirmed:event.update({'verified':True,'verification':{'method':net_goals.VERSION,'models':[net_goals.MODEL],'independentViews':2,'evidenceTimes':data['evidenceTimes']}})
+  confidence=min(float(r['data']['confidence']) for r in agreed) if confirmed else min(.49,float(data.get('confidence',.3)))
+  event={'id':uuid.uuid5(uuid.NAMESPACE_URL,f"{m['id']}:net:{e['side']}:{t:.3f}").hex,'time':round(t,1),'start':round(max(0,t-15),1),'end':round(min(duration,t+20),1),'kind':'goal' if confirmed else 'possible_goal','confidence':confidence,'evidence':str(data.get('evidence',''))[:700],'included':confirmed,'netSide':e['side'],'netEpisode':e['episode']}
+  if confirmed:event.update({'verified':True,'verification':{'method':net_goals.VERSION,'models':[net_goals.MODEL],'independentViews':len(results),'evidenceTimes':sorted(set(t for r in agreed for t in r['data']['evidenceTimes']))}})
   else:event['reviewOutcome']='unconfirmed'
   # Repeated views of the same resting ball do not become additional goals.
   previous=next((x for x in events if confirmed and x.get('verified') and x.get('netSide')==e['side'] and abs(x['time']-t)<=2),None)

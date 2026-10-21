@@ -39,13 +39,13 @@ class FrameWorkerTests(unittest.TestCase):
   m={'id':'net-test','revision':2,'status':'analysis','events':[{'id':'manual','time':5,'kind':'manual','manual':True,'included':True,'confidence':1}]};metrics={}
   def scan(detector,source,directory,start,length,cal):
    return {'rows':[{'side':0,'t':start+10,'confidence':.8}],'frames':360}
-  def verify(client,source,directory,e,duration,cal,model_id=None,second_view=False):
-   t=e['time'];positive=t==10 or t==40 and not second_view
-   return {'candidate':e,'model':worker.net_goals.MODEL,'secondView':second_view,'usage':{},'data':{'goal':positive,'uncertain':t==40 and second_view,'time':t if positive else None,'confidence':.7,'evidenceTimes':[t],'observations':[{'time':t,'ball':'checked inside net'}],'evidence':'Visible ball position checked'}}
-  with tempfile.TemporaryDirectory() as tmp,patch.object(worker,'heartbeat',side_effect=lambda doc,lease,stage=None:lease+1),patch.object(worker,'load_checkpoint',return_value=None),patch.object(worker,'checkpoint'),patch.object(worker.frame_goals,'classify',return_value={'stationary':True,'indoor':True}),patch.object(worker.net_goals,'calibrate',return_value={'supported':True}),patch.object(worker.net_goals,'ensure_model'),patch.object(worker.net_goals,'BallDetector'),patch.object(worker.net_goals,'scan_segment',side_effect=scan),patch.object(worker.net_goals,'verify',side_effect=verify):
+  def verify(client,source,directory,e,duration,cal,model_id=None,second_view=False,tie_break=False):
+   t=e['time'];positive=t==10 and (second_view or tie_break) or t==40 and not (second_view or tie_break)
+   return {'candidate':e,'model':worker.net_goals.MODEL,'secondView':second_view,'tieBreak':tie_break,'usage':{},'data':{'goal':positive,'uncertain':t==10 and not (second_view or tie_break) or t==40 and second_view,'time':t if positive else None,'confidence':.7,'evidenceTimes':[t],'observations':[{'time':t,'ball':'checked inside net'}],'evidence':'Visible ball position checked'}}
+  with tempfile.TemporaryDirectory() as tmp,patch.object(worker,'heartbeat',side_effect=lambda doc,lease,stage=None:lease+1),patch.object(worker,'load_checkpoint',return_value=None),patch.object(worker,'checkpoint'),patch.object(worker.frame_goals,'classify',return_value={'stationary':True,'indoor':True}),patch.object(worker.net_goals,'calibrate',return_value={'supported':True}),patch.object(worker.net_goals,'ensure_model'),patch.object(worker.net_goals,'BallDetector'),patch.object(worker.net_goals,'scan_segment',side_effect=scan),patch.object(worker.net_goals,'verify',side_effect=verify) as verifier:
    events,lease=worker.analyze_nets(m,100,'source',pathlib.Path(tmp),90,metrics)
   self.assertEqual(len(events),3);self.assertEqual(events[0]['id'],'manual')
   self.assertTrue(events[1]['verified']);self.assertTrue(events[1]['included'])
   self.assertEqual(events[2]['reviewOutcome'],'unconfirmed');self.assertFalse(events[2]['included'])
-  self.assertEqual(metrics['netVerifiedGoals'],1);self.assertGreater(lease,100)
+  self.assertEqual(metrics['netVerifiedGoals'],1);self.assertGreater(lease,100);self.assertEqual(verifier.call_count,7)
 if __name__=='__main__':unittest.main()

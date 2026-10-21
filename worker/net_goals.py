@@ -9,7 +9,8 @@ import numpy as np
 cv2.setNumThreads(1)
 import frame_goals
 
-VERSION='net-ball-v2'
+VERSION='net-ball-v3'
+DETECTOR_VERSION='net-ball-v2'
 MODEL='us.anthropic.claude-opus-5-5'
 ASSET='worker-assets/models/rfdetr-nano-int8-6ae07760.onnx'
 SHA256='6ae077607df147ff3024f046f2e974a8bfe55b4e776c08f5b719fd61617f5568'
@@ -145,7 +146,7 @@ def scan_segment(detector,source,directory,start,length,calibration):
   cap.release()
   if index<max(1,math.floor(length*FPS)-1):raise RuntimeError('Incomplete native goal scan; segment must retry.')
   frame_count+=index
- return {'start':start,'length':length,'rows':filter_sightings(rows,calibration,width,height),'frames':frame_count,'sourceSize':[width,height],'modelSHA256':SHA256,'version':VERSION,'fps':FPS}
+ return {'start':start,'length':length,'rows':filter_sightings(rows,calibration,width,height),'frames':frame_count,'sourceSize':[width,height],'modelSHA256':SHA256,'version':DETECTOR_VERSION,'fps':FPS}
 
 def candidates(rows,gap=4):
  groups=[]
@@ -163,22 +164,32 @@ def candidates(rows,gap=4):
   for chunk in buckets.values():out.append({'side':chunk[0]['side'],'time':chunk[0]['t'],'lastSeen':chunk[-1]['t'],'peakTime':max(chunk,key=lambda r:r['confidence'])['t'],'detections':len(chunk),'episode':f"{g[0]['side']}:{g[0]['t']:.3f}"})
  return sorted(out,key=lambda e:e['time'])
 
-def verify(client,source,directory,candidate,duration,calibration,model_id=MODEL,second_view=False):
+def review_region(region,reference,second_view=False):
+ if not region.get('anchor'):return region
+ x,y,r,b=region['anchor'];gh=region['goalHeight'];rw,rh=reference
+ if second_view and r-x>gh*.4:
+  return {**region,'bounds':[max(0,int(x-gh*.25)),max(0,int(y-gh*.75)),min(rw,int(r+gh*.3)),min(rh,int(b+gh*.65))]}
+ if not second_view and (x+r)/2>rw/2:
+  # The right goal faces LEFT. Put context on the court/shot-approach side,
+  # rather than spending image detail on the wall behind the net.
+  return {**region,'bounds':[max(0,int(x-gh*1.8)),max(0,int(y-gh*.7)),min(rw,int(r+gh*.6)),min(rh,int(b+gh*.65))]}
+ return region
+
+def verify(client,source,directory,candidate,duration,calibration,model_id=MODEL,second_view=False,tie_break=False):
  directory=pathlib.Path(directory);directory.mkdir(parents=True,exist_ok=True)
  # Keep the full court for orientation, then dense close-ups plus retrieval.
  cap=cv2.VideoCapture(str(source),cv2.CAP_FFMPEG,[cv2.CAP_PROP_N_THREADS,1]);width=int(cap.get(cv2.CAP_PROP_FRAME_WIDTH));height=int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
  t=float(candidate['peakTime']);start=max(0,float(candidate['time'])-2);end=min(duration,float(candidate['lastSeen'])+4)
  # Split long episodes by caller; do not silently sample away a second goal.
  if end-start>24:raise RuntimeError('Net episode exceeds dense review window.')
- region=calibration['regions'][candidate['side']]
- if second_view and region.get('anchor'):
-  x,y,r,b=region['anchor'];gh=region['goalHeight']
-  if r-x>gh*.4:
-   rw,rh=calibration['referenceSize'];region={**region,'bounds':[max(0,int(x-gh*.25)),max(0,int(y-gh*.75)),min(rw,int(r+gh*.3)),min(rh,int(b+gh*.65))]}
+ region=review_region(calibration['regions'][candidate['side']],calibration['referenceSize'],second_view)
  a,b,c,d=source_region(region,calibration['referenceSize'],width,height)
  # Dense ordered frames throughout, including fast net contact and rebounds.
- fps=5 if second_view else 8;offset=.0625 if second_view else 0
- if second_view:
+ fps=5 if second_view else 8;offset=1/30 if tie_break else .0625 if second_view else 0
+ if tie_break:
+  dense_start=max(start,t-2);dense_end=min(end,t+2)
+  times=sorted(set([round(start+offset+i/2,3) for i in range(math.ceil((end-start-offset)*2))]+[round(dense_start+offset+i/15,3) for i in range(math.ceil((dense_end-dense_start-offset)*15))]))
+ elif second_view:
   times=[round(start+offset+i/fps,3) for i in range(math.ceil((end-start-offset)*fps))]
  else:
   # Review the complete incident at 2fps, with dense 8fps coverage around the
@@ -194,8 +205,8 @@ def verify(client,source,directory,candidate,duration,calibration,model_id=MODEL
  # Decode the native crop once at the densest grid, then select the labeled
  # frames for the requested overview/dense sampling grid.
  for old in directory.glob('*.jpg'):old.unlink()
- actual_start=start+offset;decode_fps=5 if second_view else 8
- subprocess.run(['ffmpeg','-nostdin','-v','error','-threads','1','-ss',str(actual_start),'-i',str(source),'-t',str(end-actual_start),'-filter_threads','1','-vf',f'crop={c-a}:{d-b}:{a}:{b},fps={decode_fps}:start_time=0,scale=900:-2','-threads','1','-q:v','2','-y',str(directory/'%04d.jpg')],capture_output=True,check=True,timeout=600)
+ actual_start=start+offset;decode_fps=15 if tie_break else 5 if second_view else 8;scale=1280 if tie_break else 900
+ subprocess.run(['ffmpeg','-nostdin','-v','error','-threads','1','-ss',str(actual_start),'-i',str(source),'-t',str(end-actual_start),'-filter_threads','1','-vf',f'crop={c-a}:{d-b}:{a}:{b},fps={decode_fps}:start_time=0,scale={scale}:-2','-threads','1','-q:v','2','-y',str(directory/'%04d.jpg')],capture_output=True,check=True,timeout=600)
  files=sorted(directory.glob('*.jpg'));expected=math.ceil((end-actual_start)*decode_fps)
  if len(files)<max(1,expected-1):raise RuntimeError('Incomplete net verification decode.')
  for index in sorted(set(round((sec-actual_start)*decode_fps) for sec in times)):
@@ -219,7 +230,7 @@ def verify(client,source,directory,candidate,duration,calibration,model_id=MODEL
   try:
    if data['uncertain'] or not start<=float(data['time'])<end or not .6<=float(data['confidence'])<=1 or not isinstance(data.get('evidenceTimes'),list) or not data['evidenceTimes'] or not all(start<=float(e)<end for e in data['evidenceTimes']):data['goal']=False;data['uncertain']=True
   except (ValueError,TypeError):raise RuntimeError('Invalid ball-in-net evidence timestamps.')
- return {'data':data,'usage':usage,'window':[start,end],'candidate':candidate,'model':model_id,'secondView':second_view}
+ return {'data':data,'usage':usage,'window':[start,end],'candidate':candidate,'model':model_id,'secondView':second_view,'tieBreak':tie_break}
 
 
 def agreement(primary,secondary):
@@ -230,3 +241,11 @@ def agreement(primary,secondary):
    if d.get('goal') is not True or d.get('uncertain') is not False or not .6<=float(d['confidence'])<=1 or not math.isfinite(float(d['time'])) or not d.get('evidenceTimes'):return False
   except (TypeError,ValueError,KeyError):return False
  return abs(float(primary['data']['time'])-float(secondary['data']['time']))<=4
+
+
+def consensus(results):
+ """Uncertainty is not a negative vote; require two direct, coherent positives."""
+ for i,first in enumerate(results):
+  for second in results[i+1:]:
+   if agreement(first,second):return sorted([first,second],key=lambda r:float(r['data']['time']))
+ return None
