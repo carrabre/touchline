@@ -106,5 +106,76 @@
       "status": "Review needed"
     }
   },
-  "limit": "No human-confirmed goal timestamp or total score for this recording has been provided. Zero model-confirmed goals is not proof that none were scored. Unconfirmed attempts must remain unchecked and are not a goals-only reel."
+  "limit": "No human-confirmed goal timestamp or total score for this recording has been provided. Zero model-confirmed goals is not proof that none were scored. Unconfirmed attempts must remain unchecked and are not a goals-only reel.",
+  "netPipelineFollowup": {
+    "verifiedAt": "2026-10-21T00:57:19.262423+00:00",
+    "analysisVersion": "net-ball-v3",
+    "detectorVersion": "net-ball-v2",
+    "detector": "RF-DETR Nano COCO, ONNX INT8",
+    "detectorSHA256": "6ae077607df147ff3024f046f2e974a8bfe55b4e776c08f5b719fd61617f5568",
+    "verifier": "us.anthropic.claude-opus-5-5",
+    "verificationRule": "Two coherent positive observations across up to three blinded views of the same model; uncertain views receive a second look; conflicts receive dense 15fps detail.",
+    "automaticCandidateTimes": true,
+    "userGoalLabelsSupplied": false,
+    "goalCountCap": null,
+    "allGoalsRecallCertified": false,
+    "occlusionLimit": "The far goal floor is partly hidden by foreground bags and players; unresolved incidents remain unchecked.",
+    "production": {
+      "revision": 3,
+      "status": "ready",
+      "verifiedGoals": [
+        318.1,
+        333.4,
+        687.9,
+        901.7
+      ],
+      "allSelectedGoalsCovered": true,
+      "renderedClips": 3,
+      "durationSeconds": 120.395804,
+      "reelBytes": 98669174,
+      "fullMediaDecode": "passed",
+      "sourcePreserved": true,
+      "netVersion": "net-ball-v3",
+      "scanFrames": 14376,
+      "scanCoverageSeconds": 1198.031667,
+      "candidates": 163,
+      "unconfirmedRetained": 70,
+      "modelUsage": {
+        "inputTokens": 11253413,
+        "outputTokens": 336286
+      },
+      "soundtrack": "Legionnaire (Original)"
+    },
+    "browser": {
+      "verifiedGoalCards": 4,
+      "selectedMoments": 4,
+      "reelPlaybackAdvancedToSeconds": 36.90688,
+      "mediaError": null,
+      "consoleErrors": 0
+    },
+    "runtimeChecks": {
+      "freshNativeScanFrames": 360,
+      "freshNativeScanCompletedAt": "2026-10-21T00:25:08+00:00",
+      "freshDenseTieBreakCompletedAt": "2026-10-21T00:49:34+00:00",
+      "freshDenseTieBreakConfirmedGoal": true,
+      "freshDenseTieBreakSourceSecond": 318.133,
+      "checkpointReuse": "Unchanged full-recording detector results and completed automatic reviews were reused; the corrected court-side view and 15fps tie-break were exercised live on AWS."
+    },
+    "deployment": {
+      "workerSSMCommand": "c83ebd18-da53-4019-93df-ba819befddf4",
+      "workerSSMStatus": "Success",
+      "workerBundleSHA256": "24aaf193e3587dcb163e90c0c253daea277e6f05f273d35d88ca431cc34e5f8d",
+      "repository": "https://github.com/carrabre/touchline",
+      "matchURL": "https://touchline-two-zeta.vercel.app/?match=6a5e48e04b0ad9af7269ad3c1507a0e8"
+    },
+    "regressionChecks": {
+      "pythonTestsRun": 42,
+      "pythonPassed": 41,
+      "pythonSkipped": 1,
+      "webTestsPassed": 28,
+      "webProductionBuild": "passed",
+      "nativeBuildCI": "passed"
+    },
+    "productionDiscovery": "The initial live v2 replay conservatively missed a goal because its right-goal crop omitted the incoming approach. v3 moves context toward the court and adds a dense tie-break; the final production reel contains all four automatically verified goals."
+  }
 }
