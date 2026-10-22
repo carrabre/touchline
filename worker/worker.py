@@ -95,6 +95,19 @@ def review_candidates(events,other_limit=40):
  others=[e for e in ordered if e['kind'] not in ['goal','possible_goal']]
  return goals+others[:other_limit]
 
+def clip_window(t,duration):
+ # Four seconds of buildup and three seconds after the goal. Shift the window
+ # at source boundaries rather than padding a short reel with idle footage.
+ start=max(0,min(round(t-4,1),max(0,duration-7)))
+ return {'start':start,'end':min(duration,start+7)}
+
+def compact_legacy_windows(events,duration):
+ # Migrate only untouched 15s-before/20s-after defaults. Preserve custom trims
+ # and manually added moments when an existing match is rendered again.
+ for e in events:
+  if not e.get('manual') and abs(e['start']-round(max(0,e['time']-15),1))<=.11 and abs(e['end']-round(min(duration,e['time']+20),1))<=.11:
+   e.update(clip_window(e['time'],duration))
+
 def choose(events,target):
  selected=[];total=0
  for e in sorted((x for x in events if x['included']),key=lambda x:(0 if x.get('manual') else 1,{'goal':0,'save':1,'close_chance':2,'impressive_play':3,'possible_goal':4}.get(x['kind'],3),-x['confidence'])):
@@ -189,7 +202,7 @@ def analyze_nets(m,lease,source,directory,duration,metrics):
   data=agreed[0]['data'] if confirmed else results[0]['data']
   t=float(data['time']) if confirmed else float(e['time'])
   confidence=min(float(r['data']['confidence']) for r in agreed) if confirmed else min(.49,float(data.get('confidence',.3)))
-  event={'id':uuid.uuid5(uuid.NAMESPACE_URL,f"{m['id']}:net:{e['side']}:{t:.3f}").hex,'time':round(t,1),'start':round(max(0,t-15),1),'end':round(min(duration,t+20),1),'kind':'goal' if confirmed else 'possible_goal','confidence':confidence,'evidence':str(data.get('evidence',''))[:700],'included':confirmed,'netSide':e['side'],'netEpisode':e['episode']}
+  event={'id':uuid.uuid5(uuid.NAMESPACE_URL,f"{m['id']}:net:{e['side']}:{t:.3f}").hex,'time':round(t,1),**clip_window(t,duration),'kind':'goal' if confirmed else 'possible_goal','confidence':confidence,'evidence':str(data.get('evidence',''))[:700],'included':confirmed,'netSide':e['side'],'netEpisode':e['episode']}
   if confirmed:event.update({'verified':True,'verification':{'method':net_goals.VERSION,'models':[net_goals.MODEL],'independentViews':len(results),'evidenceTimes':sorted(set(t for r in agreed for t in r['data']['evidenceTimes']))}})
   else:event['reviewOutcome']='unconfirmed'
   # Repeated views of the same resting ball do not become additional goals.
@@ -289,8 +302,9 @@ def process(item,lease):
      t=float(data['time']) if detailed else start+max(0,min(length,float(data.get('time',24))/2));confidence=max(0,min(1,float(data.get('confidence',.5))));kind=data.get('kind','close_chance')
      if kind not in ['goal','save','close_chance','impressive_play','possible_goal']:continue
      if kind=='goal' and confidence<.85:kind='possible_goal';confidence=min(confidence,.65)
-     event={'id':uuid.uuid5(uuid.NAMESPACE_URL,f'{m["id"]}:{t:.0f}').hex,'time':round(t,1),'start':round(max(0,t-15),1),'end':round(min(duration,t+20),1),'kind':kind,'confidence':confidence,'evidence':str(data.get('evidence',''))[:700],'included':confidence>=.75 and kind!='possible_goal'};event.update({'reviewOutcome':'unconfirmed'} if unconfirmed else {});events.append(event)
+     event={'id':uuid.uuid5(uuid.NAMESPACE_URL,f'{m["id"]}:{t:.0f}').hex,'time':round(t,1),**clip_window(t,duration),'kind':kind,'confidence':confidence,'evidence':str(data.get('evidence',''))[:700],'included':confidence>=.75 and kind!='possible_goal'};event.update({'reviewOutcome':'unconfirmed'} if unconfirmed else {});events.append(event)
     m['events']=frame_goals.retain_review_events(dedup(events));metrics['reviewCandidatesTotal']=sum(e['kind']=='possible_goal' for e in events);m['analysisComplete']=True;metrics['modelUsage']=usage;metrics['scoutCandidates']=len(all_events);metrics['deepCandidates']=len(candidates);metrics['analysisSeconds']=round(time.time()-started,2);lease=heartbeat(m,lease,'selection')
+  compact_legacy_windows(m['events'],duration);metrics['clipWindowVersion']='goal-7s-v1'
   clips=choose(m['events'],m['length']);m['note']=f'{len(clips)} sequences selected';lease=heartbeat(m,lease,'selection')
   if not clips:
    m['note']='Goals could not be confirmed from this camera view. Preview the unconfirmed attempts before selecting clips.' if metrics.get('frameAnalysisVersion') and not any(e['kind']=='goal' and e['confidence']>=.85 for e in m['events']) else 'No clips selected. Review moments or add a goal.';m['error']=None;lease=heartbeat(m,lease,'needs_review');return

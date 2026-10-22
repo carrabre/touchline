@@ -4,10 +4,30 @@ sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/'worker'))
 os.environ.setdefault('MEDIA_BUCKET','local-test-only');os.environ.setdefault('MATCH_TABLE','local-test-only');os.environ.setdefault('AWS_EC2_METADATA_DISABLED','true');os.environ.setdefault('AWS_DEFAULT_REGION','us-east-1');os.environ.setdefault('WORK_DIR',tempfile.mkdtemp())
 # Instantiating clients does not make requests. Dummy credentials isolate the local tests.
 os.environ['AWS_ACCESS_KEY_ID']='local-only';os.environ['AWS_SECRET_ACCESS_KEY']='local-only'
-from worker import choose,dedup,extract,probe,InvalidVideo,render,vision,LITE,review_candidates,review_window
+from worker import choose,dedup,extract,probe,InvalidVideo,render,vision,LITE,review_candidates,review_window,clip_window,compact_legacy_windows
 from music import compose
 from soundtracks import select_music,TRACKS
 class MediaTests(unittest.TestCase):
+ def test_short_reels_do_not_fill_target_with_idle_footage(self):
+  for count in [1,3,30]:
+   events=[{'time':20+i*40,**clip_window(20+i*40,1300),'included':True,'kind':'goal','confidence':.9} for i in range(count)]
+   clips=choose(events,90)
+   self.assertEqual(len(clips),count)
+   self.assertAlmostEqual(sum(e['end']-e['start'] for e in clips),count*7)
+ def test_compact_window_keeps_goal_and_source_boundaries(self):
+  for t,duration in [(0,100),(.2,100),(99.9,100),(1198.02,1198.031667),(1,2)]:
+   window=clip_window(t,duration)
+   self.assertGreaterEqual(window['start'],0)
+   self.assertLessEqual(window['start'],t)
+   self.assertGreaterEqual(window['end'],t)
+   self.assertLessEqual(window['end'],duration)
+   self.assertAlmostEqual(window['end']-window['start'],min(7,duration))
+ def test_legacy_compaction_preserves_custom_and_manual_trims(self):
+  events=[{'time':50,'start':35,'end':70}, {'time':50,'start':35,'end':70,'manual':True}, {'time':50,'start':43,'end':55}]
+  compact_legacy_windows(events,100)
+  self.assertEqual(events[0],{'time':50,'start':46,'end':53})
+  self.assertEqual((events[1]['start'],events[1]['end']),(35,70))
+  self.assertEqual((events[2]['start'],events[2]['end']),(43,55))
  def test_late_goal_candidate_includes_attacking_sequence(self):
   # Real regression: the scout returned 3693, but the goal occurred near 3663.
   start,length=review_window(3693,5749.44)
