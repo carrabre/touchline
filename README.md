@@ -16,6 +16,8 @@ Automatic clips default to **7 seconds per goal** (4 seconds before, 3 after), s
 
 Reels support at least **30 selected goals**, including manually added goals. Goals and manual moments are retained even when they exceed the 90-second / 3-minute / 4-minute target; that target limits optional other highlights. The editor accepts up to 100 moments. Automatic detection can miss goals or select non-goals, so review is still required. Fixed indoor games use native-detail ball tracking at both nets plus two independent visual checks. Other views retain the general scout and detailed fallback; uncertain attempts stay unchecked. [Detection and worker deployment](docs/GOAL_DETECTION.md). The 30-clip capacity test uses generated footage; it does not measure detection accuracy.
 
+Review reels can include every selected actual and possible goal without a length cap. Numbered clips retain their incident context and show source timestamps throughout; send feedback as “#12 goal” or “#18 not a goal.”
+
 ## iPhone background uploads
 
 The native [iPhone uploader](ios/README.md) stages file-backed transfers with iOS, so they can continue after switching apps or locking the phone. Wait for **Background upload is ready** before leaving; do not force-quit the app. AWS finishes multipart uploads and starts processing independently of the phone. This requires the native app; the website still needs to stay open during a phone upload.

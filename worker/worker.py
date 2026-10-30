@@ -108,12 +108,13 @@ def compact_legacy_windows(events,duration):
   if not e.get('manual') and abs(e['start']-round(max(0,e['time']-15),1))<=.11 and abs(e['end']-round(min(duration,e['time']+20),1))<=.11:
    e.update(clip_window(e['time'],duration))
 
-def choose(events,target):
+def choose(events,target,review=False):
  selected=[];total=0
  for e in sorted((x for x in events if x['included']),key=lambda x:(0 if x.get('manual') else 1,{'goal':0,'save':1,'close_chance':2,'impressive_play':3,'possible_goal':4}.get(x['kind'],3),-x['confidence'])):
   length=e['end']-e['start']
-  if e['kind']=='goal' or e.get('manual') or total+length<=target or not selected:selected.append(dict(e));total+=length
+  if review or e['kind']=='goal' or e.get('manual') or total+length<=target or not selected:selected.append(dict(e));total+=length
  selected.sort(key=lambda e:e['start']);merged=[]
+ if review:return selected
  for e in selected:
   if merged and e['start']<=merged[-1]['end']+.5:merged[-1]['end']=max(merged[-1]['end'],e['end'])
   else:merged.append(e)
@@ -139,9 +140,11 @@ def render(source,directory,m,clips):
    image.save(path)
   titlepng=directory/'title.png';labelpng=directory/'label.png'
   overlay(titlepng,m['title'][:100] if i==0 else '',int(height*.08),True)
-  label=f"{int(e['time']//60)}:{int(e['time']%60):02d} {e['kind'].replace('_',' ').title()}" if m['labels'] else ''
+  def clock(t):return f'{int(t//60)}:{int(t%60):02d}'
+  review=m.get('reviewMode',False)
+  label=(f"#{e.get('reviewNumber',i+1):02d} | Source {clock(e['start'])}-{clock(e['end'])} | {e['kind'].replace('_',' ').title()}" if review else f"{clock(e['time'])} {e['kind'].replace('_',' ').title()}") if m['labels'] or review else ''
   overlay(labelpng,label,int(height*.89))
-  vf="[0:v]scale=trunc(iw*sar/2)*2:trunc(ih/2)*2,setsar=1,format=yuv420p[base];[base][1:v]overlay=0:0:enable='lt(t,3)'[title];[title][2:v]overlay=0:0:enable='lt(t,4)'[v]"
+  vf=f"[0:v]scale=trunc(iw*sar/2)*2:trunc(ih/2)*2,setsar=1,format=yuv420p[base];[base][1:v]overlay=0:0:enable='lt(t,3)'[title];[title][2:v]overlay=0:0:enable='lt(t,{length if review else 4})'[v]"
   args=['ffmpeg','-nostdin','-v','error','-threads','2','-ss',str(e['start']),'-i',str(source),'-i',str(titlepng),'-i',str(labelpng)]
   if not audio:args+=['-f','lavfi','-i','anullsrc=r=48000:cl=stereo']
   args+=['-t',str(length),'-filter_complex',vf,'-map','[v]','-map','0:a:0' if audio else '3:a:0','-c:v','libx264','-threads','2','-preset','fast','-crf','20','-c:a','aac','-b:a','192k','-ar','48000','-ac','2','-avoid_negative_ts','make_zero','-y',str(out)]
@@ -305,7 +308,7 @@ def process(item,lease):
      event={'id':uuid.uuid5(uuid.NAMESPACE_URL,f'{m["id"]}:{t:.0f}').hex,'time':round(t,1),**clip_window(t,duration),'kind':kind,'confidence':confidence,'evidence':str(data.get('evidence',''))[:700],'included':confidence>=.75 and kind!='possible_goal'};event.update({'reviewOutcome':'unconfirmed'} if unconfirmed else {});events.append(event)
     m['events']=frame_goals.retain_review_events(dedup(events));metrics['reviewCandidatesTotal']=sum(e['kind']=='possible_goal' for e in events);m['analysisComplete']=True;metrics['modelUsage']=usage;metrics['scoutCandidates']=len(all_events);metrics['deepCandidates']=len(candidates);metrics['analysisSeconds']=round(time.time()-started,2);lease=heartbeat(m,lease,'selection')
   compact_legacy_windows(m['events'],duration);metrics['clipWindowVersion']='goal-7s-v1'
-  clips=choose(m['events'],m['length']);m['note']=f'{len(clips)} sequences selected';lease=heartbeat(m,lease,'selection')
+  clips=choose(m['events'],m['length'],review=m.get('reviewMode',False));m['note']=f'{len(clips)} sequences selected';lease=heartbeat(m,lease,'selection')
   if not clips:
    m['note']='Goals could not be confirmed from this camera view. Preview the unconfirmed attempts before selecting clips.' if metrics.get('frameAnalysisVersion') and not any(e['kind']=='goal' and e['confidence']>=.85 for e in m['events']) else 'No clips selected. Review moments or add a goal.';m['error']=None;lease=heartbeat(m,lease,'needs_review');return
   select_music(m);m['note']='Cutting clips and mixing music';lease=heartbeat(m,lease,'rendering');render_start=time.time();final,output_duration,selected=render(source,directory,m,clips)

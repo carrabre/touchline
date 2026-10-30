@@ -8,6 +8,14 @@ from worker import choose,dedup,extract,probe,InvalidVideo,render,vision,LITE,re
 from music import compose
 from soundtracks import select_music,TRACKS
 class MediaTests(unittest.TestCase):
+ def test_review_reel_keeps_all_candidates_and_separate_feedback_numbers(self):
+  events=[{'id':str(i),'reviewNumber':i+1,'time':i*4+3,'start':i*4,'end':i*4+8,'included':True,'kind':'possible_goal','confidence':.3} for i in range(74)]
+  clips=choose(events,90,review=True)
+  self.assertEqual(len(clips),74)
+  self.assertEqual([e['reviewNumber'] for e in clips],list(range(1,75)))
+  self.assertEqual(sum(e['end']-e['start'] for e in clips),592)
+  events[10]['included']=False
+  self.assertEqual(len(choose(events,90,review=True)),73)
  def test_short_reels_do_not_fill_target_with_idle_footage(self):
   for count in [1,3,30]:
    events=[{'time':20+i*40,**clip_window(20+i*40,1300),'included':True,'kind':'goal','confidence':.9} for i in range(count)]
