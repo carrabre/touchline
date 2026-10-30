@@ -224,5 +224,33 @@
     "workerDeploymentCommand": "c2a94008-32dc-413c-98ce-36f706e2df37",
     "mainCommit": "3653d5b8b16076c5b73d55eda4be2623715c6af5",
     "allGoalRecallCertified": false
+  },
+  "reviewProductionFollowup": {
+    "revision": 5,
+    "reviewMode": true,
+    "clipCount": 87,
+    "verifiedGoals": 3,
+    "possibleGoals": 84,
+    "reelSeconds": 973.240164,
+    "outputBytes": 766207278,
+    "allSelectedClipsRendered": true,
+    "sourcePreserved": true,
+    "publicAPI": "passed",
+    "soundtrack": "Hunted",
+    "workerDeployCommand": "ed89c97d-9e59-4409-ab0f-0a1a0a501497",
+    "bundleSHA256": "9689d031b028c1168ca59778f7b56058bab2f592ca2e97250bf8f8e65ef7cc6d",
+    "commit": "d0be432c37ee02e5c465b3e0e7422b0c8d843b3d",
+    "date": "2026-10-30",
+    "fullVideoAudioDecode": "passed",
+    "decodedFrames": 29020,
+    "labeledSamples": [
+      1,
+      30,
+      60,
+      87
+    ],
+    "webCommit": "cb0ee2372e9366a33603a04a5cfbacc0c224493e",
+    "webDeployment": "dpl_Ge55vfQwRa3JzFDHC1w3PebaM1PU",
+    "decodeCommand": "884ff966-296d-49f0-9162-cc0130050e7f"
   }
 }
