@@ -177,5 +177,52 @@
       "nativeBuildCI": "passed"
     },
     "productionDiscovery": "The initial live v2 replay conservatively missed a goal because its right-goal crop omitted the incoming approach. v3 moves context toward the court and adds a dense tie-break; the final production reel contains all four automatically verified goals."
+  },
+  "compactProductionFollowup": {
+    "revision": 4,
+    "status": "ready",
+    "publishedReelSeconds": 28.093663,
+    "selectedIncidents": [
+      {
+        "sourceTime": 318.1,
+        "start": 314.1,
+        "end": 321.1,
+        "kind": "goal",
+        "verified": true
+      },
+      {
+        "sourceTime": 333.4,
+        "start": 329.4,
+        "end": 336.4,
+        "kind": "goal",
+        "verified": true
+      },
+      {
+        "sourceTime": 687.9,
+        "start": 683.9,
+        "end": 690.9,
+        "kind": "possible_goal",
+        "verified": false
+      },
+      {
+        "sourceTime": 901.7,
+        "start": 897.7,
+        "end": 904.7,
+        "kind": "goal",
+        "verified": true
+      }
+    ],
+    "renderedClipCount": 4,
+    "allSelectedIncidentsCovered": true,
+    "fullVideoAndAudioDecode": "passed",
+    "publicAPIRevision": 4,
+    "sourcePreserved": true,
+    "bytes": 22480988,
+    "clipWindowVersion": "goal-7s-v1",
+    "soundtrack": "Titan",
+    "workerBundleSHA256": "11585f7bceca32a3b202da48d641ed52c7aead3d8f5db95ee3c3b383977f5ef7",
+    "workerDeploymentCommand": "c2a94008-32dc-413c-98ce-36f706e2df37",
+    "mainCommit": "3653d5b8b16076c5b73d55eda4be2623715c6af5",
+    "allGoalRecallCertified": false
   }
 }
