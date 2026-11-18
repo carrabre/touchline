@@ -1,44 +1,8 @@
-import type { Metadata } from "next";
-import { cookies } from "next/headers";
-import { notFound } from "next/navigation";
-import { Film, Scissors, Trophy } from "lucide-react";
-import { hasReviewAccess, REVIEW_COOKIE } from "@/lib/review-access";
-import { loadReviewedMatch } from "@/lib/reviewed-goals";
-import { GoalAccess } from "../access";
-import { GoalTracker } from "../tracker";
-import { gameHref, REVIEWED_MATCH_ID } from "@/lib/game-paths";
-import "../tracker.css";
+import { notFound, redirect } from "next/navigation";
+import { gameHref, isReviewedGameId } from "@/lib/game-paths";
 
-export const metadata: Metadata = {
-  title: "Stats leaderboard · Touchline",
-  robots: { index: false, follow: false },
-};
-
-export default async function ReviewedGamePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LegacyGamePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (id !== REVIEWED_MATCH_ID) notFound();
-  const access = hasReviewAccess((await cookies()).get(REVIEW_COOKIE)?.value);
-  const match = access ? await loadReviewedMatch().catch(() => null) : null;
-
-  return (
-    <div className="shell">
-      <aside className="rail" aria-label="Touchline navigation">
-        <a className="brand" href="/">
-          <span className="brandmark"><Scissors size={22} /></span>
-          touchline<span className="brand-period">.</span>
-        </a>
-        <a className="nav" href="/" aria-label="Match library"><Film size={19} />Match library</a>
-        <a className="nav chosen" href={gameHref(id)} aria-current="page" aria-label="Stats leaderboard">
-          <Trophy size={19} />Stats leaderboard
-        </a>
-      </aside>
-      <main className="goal-main">
-        <header className="topbar"><span>MATCH STUDIO</span></header>
-        {match ? <GoalTracker match={match} /> : access ?
-          <div className="pagehead"><div><h1>Stats leaderboard</h1><p>The match is temporarily unavailable.</p></div></div> :
-          <GoalAccess />}
-        <footer>TOUCHLINE</footer>
-      </main>
-    </div>
-  );
+  if (!isReviewedGameId(id)) notFound();
+  redirect(gameHref(id));
 }

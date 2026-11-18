@@ -1,12 +1,17 @@
 import { get } from "@/lib/aws";
-import { isGameId } from "@/lib/game-paths";
+import { isGameId, isReviewedGameId } from "@/lib/game-paths";
 import { isPublicMatch } from "@/lib/match-access";
 import { mediaResponse } from "@/lib/media-response";
+import { reviewedMediaKey } from "@/lib/reviewed-goals";
 
 export const maxDuration = 300;
 
 async function playback(request: Request, { params }: { params: Promise<{ id: string; asset: string }> }) {
   const { id, asset } = await params;
+  if (isReviewedGameId(id)) {
+    const key = await reviewedMediaKey(id, asset).catch(() => null);
+    return key ? mediaResponse(request, key) : new Response(null, { status: 404 });
+  }
   if (!isGameId(id) || (asset !== "reel" && asset !== "source")) return new Response(null, { status: 404 });
 
   const match = await get(id).catch(() => null);

@@ -4,8 +4,9 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowDown, ArrowUpRight, Download, Play, UserRound } from "lucide-react";
 import { CopyGameLink } from "@/app/components/copy-game-link";
 import { gameHref } from "@/lib/game-paths";
+import { rankPlayers } from "@/lib/game-stats";
 
-type Player = { id: string; photo: string };
+type Player = { id: string; photo: string; name?: string };
 type Goal = {
   number: number;
   clip: number;
@@ -58,26 +59,16 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
     }
   }, [match.playerAliases]);
 
-  const name = (id: string) => names[id] || `Player ${id.slice(1)}`;
   const players = new Map(match.players.map((player) => [player.id, player]));
+  const name = (id: string) => names[id] || players.get(id)?.name || `Player ${id.slice(1)}`;
   const visible = match.goals.filter((goal) =>
     !filter || goal.scorer === filter || goal.assists.includes(filter));
   const totalAssists = match.goals.reduce((total, goal) => total + goal.assists.length, 0);
-  const tiebreaker = sortBy === "goals" ? "assists" : "goals";
-  const playerStats = match.players.map((player) => ({
+  const rankedPlayers = rankPlayers(match.players.map((player) => ({
     ...player,
     goals: match.goals.filter((goal) => goal.scorer === player.id).length,
     assists: match.goals.filter((goal) => goal.assists.includes(player.id)).length,
-  })).sort((a, b) => b[sortBy] - a[sortBy] || b[tiebreaker] - a[tiebreaker] || a.id.localeCompare(b.id));
-
-  let rank = 0;
-  const rankedPlayers = playerStats.map((player, index) => {
-    const previous = playerStats[index - 1];
-    if (!previous || previous.goals !== player.goals || previous.assists !== player.assists) {
-      rank = index + 1;
-    }
-    return { ...player, rank };
-  });
+  })), sortBy);
 
   function saveNames(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -116,8 +107,8 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
     <>
       <div className="pagehead goal-heading">
         <div>
-          <h1>Stats leaderboard</h1>
-          <p>{match.title} <span aria-hidden="true">·</span> {match.date}</p>
+          <h1>{match.title}</h1>
+          <p>Game stats <span aria-hidden="true">·</span> {match.date}</p>
         </div>
         <div className="match-actions">
           <CopyGameLink href={gameHref(match.id)} />
@@ -204,7 +195,7 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
           </a>
         </div>
         <video ref={video} src={match.reel} poster={match.poster} controls playsInline preload="metadata"
-          aria-label="Indoor soccer highlight reel" tabIndex={0} />
+          aria-label={`${match.title} highlight reel`} tabIndex={0} />
       </section>
 
       <section id="goal-log" className="goal-section" aria-labelledby="log-heading" tabIndex={-1}>
@@ -247,7 +238,7 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
         <div className="goal-review-list">
           {match.replays.map((replay) => (
             <a key={replay.number} className="secondary goal-small" href={replay.video} target="_blank" rel="noreferrer"
-              title={`Clip 2 · ${replay.sourceTime} · ${replay.title}`}>
+              title={`${replay.sourceTime} · ${replay.title}`}>
               <Play size={15} />#{replay.number} · {replay.outcome === "goal" ? "Goal" : "Ruled out"}
             </a>
           ))}
