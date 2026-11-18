@@ -89,7 +89,7 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
 
   function playerLabel(id: string) {
     const player = players.get(id);
-    return <span className="goal-person">{player && <img src={player.photo} alt="" width="32" height="32" />}{name(id)}</span>;
+    return <span className="goal-person">{player && <img src={player.photo} alt="" loading="lazy" decoding="async" width="32" height="32" />}{name(id)}</span>;
   }
 
   return (
@@ -137,7 +137,7 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
             <div className="goal-name-grid">
               {playerStats.map((player) => (
                 <label key={player.id} className="field">
-                  <span className="goal-person"><img src={player.photo} alt="" width="32" height="32" />Player {player.id.slice(1)}</span>
+                  <span className="goal-person"><img src={player.photo} alt="" loading="lazy" decoding="async" width="32" height="32" />Player {player.id.slice(1)}</span>
                   <input maxLength={60} value={draft[player.id] ?? ""} placeholder={`Player ${player.id.slice(1)}`}
                     onChange={(event) => setDraft({ ...draft, [player.id]: event.target.value })} />
                 </label>
@@ -151,7 +151,7 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
           {playerStats.map((player) => (
             <button key={player.id} type="button" className="goal-player" aria-pressed={filter === player.id}
               onClick={() => setFilter(filter === player.id ? "" : player.id)}>
-              <img src={player.photo} alt="" width="54" height="54" />
+              <img src={player.photo} alt="" loading="lazy" decoding="async" width="54" height="54" />
               <span className="goal-player-info">
                 <strong>{name(player.id)}</strong>
                 <small>{player.goals} {player.goals === 1 ? "goal" : "goals"} · {player.assists} {player.assists === 1 ? "assist" : "assists"}</small>
