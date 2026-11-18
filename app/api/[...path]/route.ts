@@ -1,6 +1,6 @@
 import { runtimeConfig, requestOwner, createBrowserSession } from '@/lib/runtime-config';
 import { db, scan, get, owned, put, s3, signed, parts, xmlValue, escapeXml, type Match, type Event } from '@/lib/aws';
-import { isPublicMatch, publicMatch } from '@/lib/match-access';
+import { isLibraryMatch, isPublicMatch, publicMatch } from '@/lib/match-access';
 import { musicChoices } from '@/lib/soundtracks';
 const MAX=16*1024**3, CHUNK=16*1024**2;
 const json=(d:unknown,status=200)=>Response.json(d,{status,headers:{'cache-control':'no-store'}});
@@ -20,21 +20,10 @@ async function handleOwned(req:Request,owner:string){
   if(!['GET','HEAD'].includes(req.method)){const origin=req.headers.get('origin');if(origin && origin!==new URL(req.url).origin)return json({error:'Cross-site request rejected.'},403);}
   const config=runtimeConfig();if(!config.MEDIA_ACCESS_KEY || !config.MEDIA_SECRET_KEY){if(req.method==='GET' && new URL(req.url).pathname==='/api/matches')return json({matches:[],available:false});return json({error:'Media processing is offline. The AWS connection must be restored before uploading.'},503);}
   const path=new URL(req.url).pathname.slice(5).split('/');
-  if(path[0]==='sample' && path.length===1 && req.method==='POST'){
-   const fixture=await get('validation-auto-goals-20261002');
-   const validation=fixture?.metrics?.goalValidation as {missedGoals:number;extraGoals:number}|undefined;
-   if(!fixture || fixture.status!=='ready' || !fixture.reelKey || validation?.missedGoals!==0 || validation?.extraGoals!==0)return json({error:'Sample reel unavailable.'},503);
-   const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(owner+':verified-goals-sample-v1'));
-   const id=Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,32);
-   const existing=await get(id);if(existing && existing.status!=='discarded')return json({match:existing});
-   const sample:Match={...fixture,id,owner,title:'Sample · All 3 goals',created:Date.now(),revision:0,
-    events:fixture.events.map(e=>({...e,verified:true})),note:'Three source-verified goals. Final score: Belmont 1–2 Lexington.'};
-   await put(sample);return json({match:sample});
-  }
   if(path[0]!=='matches')return json({error:'Not found.'},404);
   if(path.length===1 && req.method==='GET'){
    const d=await scan({FilterExpression:'#s <> :discarded',ExpressionAttributeNames:{'#s':'stage'},ExpressionAttributeValues:{':discarded':{S:'discarded'}},Limit:100});
-   const matches=(d.Items||[]).map((i:Record<string,any>)=>({...JSON.parse(i.doc.S),status:i.stage.S})).filter(isPublicMatch).sort((a:Match,b:Match)=>b.created-a.created);
+   const matches=(d.Items||[]).map((i:Record<string,any>)=>({...JSON.parse(i.doc.S),status:i.stage.S})).filter(isLibraryMatch).sort((a:Match,b:Match)=>b.created-a.created);
    return json({available:true,matches:matches.map((m:Match)=>publicMatch(m,owner))});
   }
   if(path.length===1 && req.method==='POST'){
