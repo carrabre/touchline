@@ -15,6 +15,7 @@ const record = z.object({
   playback: mediaKey.optional(),
   poster: mediaKey,
   players: z.array(z.object({ id: playerId, photo: mediaKey })).max(100),
+  playerAliases: z.record(playerId, playerId).optional(),
   goals: z.array(z.object({
     number: z.number().int().positive(),
     clip: z.number().int().positive(),
@@ -36,7 +37,9 @@ const record = z.object({
 }).refine((doc) => {
   const players = new Set(doc.players.map((player) => player.id));
   const plays = new Set(doc.goals.map((goal) => goal.number));
-  return players.size === doc.players.length && plays.size === doc.goals.length && doc.goals.every(
+  const aliases = Object.entries(doc.playerAliases ?? {});
+  return players.size === doc.players.length && plays.size === doc.goals.length
+    && aliases.every(([alias, target]) => !players.has(alias) && players.has(target)) && doc.goals.every(
     (goal) => players.has(goal.scorer) && new Set(goal.assists).size === goal.assists.length
       && goal.assists.every((id) => players.has(id) && id !== goal.scorer),
   );
@@ -65,7 +68,7 @@ export async function loadReviewedMatch() {
     Promise.all(doc.players.map(async ({ id, photo }) => ({ id, photo: await signed(photo) }))),
   ]);
   return {
-    id: doc.id, date: doc.date, title: doc.title, goals: doc.goals, players, download,
+    id: doc.id, date: doc.date, title: doc.title, goals: doc.goals, players, playerAliases: doc.playerAliases, download,
     reel: `${prefix}/reel`, poster: `${prefix}/poster`,
     replays: doc.replays.map((replay) => ({ ...replay, video: `${prefix}/replay-${replay.number}` })),
   };

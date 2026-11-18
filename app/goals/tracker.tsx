@@ -25,6 +25,7 @@ type ReviewedMatch = {
   download: string;
   poster: string;
   players: Player[];
+  playerAliases?: Record<string, string>;
   goals: Goal[];
   replays: { number: number; title: string; sourceTime: string; outcome: "goal" | "excluded"; video: string }[];
 };
@@ -45,11 +46,17 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(storageKey);
-      if (saved) setNames(JSON.parse(saved) ?? {});
+      if (!saved) return;
+      const savedNames: Record<string, string> = JSON.parse(saved) ?? {};
+      for (const [alias, player] of Object.entries(match.playerAliases ?? {})) {
+        if (!savedNames[player] && savedNames[alias]) savedNames[player] = savedNames[alias];
+        delete savedNames[alias];
+      }
+      setNames(savedNames);
     } catch {
       // Playback and stats remain available when browser storage is blocked.
     }
-  }, []);
+  }, [match.playerAliases]);
 
   const name = (id: string) => names[id] || `Player ${id.slice(1)}`;
   const players = new Map(match.players.map((player) => [player.id, player]));
