@@ -1,3 +1,5 @@
+export const ADD_GAME_HREF = "/?view=new";
+
 export function isGameId(id: string): boolean {
   return /^[A-Za-z0-9_-]{1,128}$/.test(id);
 }

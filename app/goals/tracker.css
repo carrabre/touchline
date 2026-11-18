@@ -77,7 +77,7 @@
 .stats-game-list a:hover { color: var(--lime); }
 .stats-game-list a span { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); white-space: nowrap; font-size: 13px; }
 
-.match-game-stats { margin-bottom: 20px; }
+.match-game-stats { margin-block: 20px; }
 .match-game-stats .sectionline { margin-bottom: 12px; }
 .match-game-stats .goal-metrics { margin-bottom: 12px; }
 .match-stat-editor { display: grid; gap: 12px; justify-items: start; }

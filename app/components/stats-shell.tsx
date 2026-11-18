@@ -1,5 +1,6 @@
-import { Film, Trophy } from "lucide-react";
+import { Film, Plus, Trophy } from "lucide-react";
 import type { ReactNode } from "react";
+import { ADD_GAME_HREF } from "@/lib/game-paths";
 
 export function StatsShell({ leaderboard = false, children }: { leaderboard?: boolean; children: ReactNode }) {
   return (
@@ -10,6 +11,7 @@ export function StatsShell({ leaderboard = false, children }: { leaderboard?: bo
           touchline<span className="brand-period">.</span>
         </a>
         <a className={leaderboard ? "nav" : "nav chosen"} href="/" aria-label="All games"><Film size={19} />All games</a>
+        <a className="nav" href={ADD_GAME_HREF} aria-label="Add game"><Plus size={19} />Add game</a>
         <a className={leaderboard ? "nav chosen" : "nav"} href="/leaderboard" aria-label="Leaderboard" aria-current={leaderboard ? "page" : undefined}>
           <Trophy size={19} />Leaderboard
         </a>

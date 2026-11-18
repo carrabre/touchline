@@ -124,6 +124,20 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
         </div>
       </section>
 
+      <section id="highlight-reel" className="goal-section goal-reel" aria-labelledby="reel-heading" tabIndex={-1}>
+        <div className="goal-reel-label">
+          <div>
+            <h2 id="reel-heading">Highlight reel</h2>
+            {activeGoal !== null && <span role="status">Play #{activeGoal}</span>}
+          </div>
+          <a className="secondary goal-small" href={match.download} download="Touchline - Indoor Soccer Highlights.mp4">
+            <Download size={17} />Download reel
+          </a>
+        </div>
+        <video ref={video} src={match.reel} poster={match.poster} controls playsInline preload="metadata"
+          aria-label={`${match.title} highlight reel`} tabIndex={0} />
+      </section>
+
       <section className="goal-section" aria-labelledby="player-heading">
         <div className="sectionline">
           <h2 id="player-heading">Player rankings</h2>
@@ -182,20 +196,6 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
             </tbody>
           </table>
         </div>
-      </section>
-
-      <section id="highlight-reel" className="goal-section goal-reel" aria-labelledby="reel-heading" tabIndex={-1}>
-        <div className="goal-reel-label">
-          <div>
-            <h2 id="reel-heading">Highlight reel</h2>
-            {activeGoal !== null && <span role="status">Play #{activeGoal}</span>}
-          </div>
-          <a className="secondary goal-small" href={match.download} download="Touchline - Indoor Soccer Highlights.mp4">
-            <Download size={17} />Download reel
-          </a>
-        </div>
-        <video ref={video} src={match.reel} poster={match.poster} controls playsInline preload="metadata"
-          aria-label={`${match.title} highlight reel`} tabIndex={0} />
       </section>
 
       <section id="goal-log" className="goal-section" aria-labelledby="log-heading" tabIndex={-1}>
