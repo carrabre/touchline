@@ -6,6 +6,7 @@ test('games and in-progress uploads are visible; discarded jobs and internal fix
   assert.equal(isPublicMatch(match),true);
   assert.equal(isPublicMatch({...match,status:'uploading'}),true);
   assert.equal(isPublicMatch({...match,status:'discarded'}),false);
+  assert.equal(isPublicMatch({...match,status:'reviewed'}),false);
   assert.equal(isPublicMatch({...match,id:'validation-internal'}),false);
 });
 test('all visitors can see a game, with editing rights only for its uploader',()=>{
