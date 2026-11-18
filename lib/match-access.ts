@@ -7,3 +7,5 @@ export function publicMatch(match: Match, owner: string) {
   const { owner: uploader, key, uploadId, metrics, ...details } = match;
   return { ...details, canEdit: uploader === owner };
 }
+
+export type PublicMatch = ReturnType<typeof publicMatch>;

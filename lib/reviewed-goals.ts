@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { db, signed } from "@/lib/aws";
 
-export const REVIEWED_MATCH_ID = "reviewed-2026-11-16-indoor";
+import { REVIEWED_MATCH_ID } from "@/lib/game-paths";
 const mediaPrefix = `reviewed/${REVIEWED_MATCH_ID}/`;
 const mediaKey = z.string().startsWith(mediaPrefix).max(300);
 const playerId = z.string().regex(/^P\d{2,5}$/);

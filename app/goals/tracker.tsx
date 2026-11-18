@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Download, Play, UserRound } from "lucide-react";
+import { CopyGameLink } from "@/app/components/copy-game-link";
+import { gameHref } from "@/lib/game-paths";
 
 type Player = { id: string; photo: string };
 type Goal = {
@@ -97,9 +99,12 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
           <h1>Goal tracker</h1>
           <p>{match.title} <span aria-hidden="true">·</span> {match.date}</p>
         </div>
-        <a className="secondary" href={match.download} download="Touchline - Indoor Soccer Highlights.mp4">
-          <Download size={17} />Download reel
-        </a>
+        <div className="match-actions">
+          <CopyGameLink href={gameHref(match.id)} />
+          <a className="secondary" href={match.download} download="Touchline - Indoor Soccer Highlights.mp4">
+            <Download size={17} />Download reel
+          </a>
+        </div>
       </div>
 
       <section className="goal-overview" aria-label="Match overview">

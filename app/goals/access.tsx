@@ -17,7 +17,7 @@ export function GoalAccess() {
         body: JSON.stringify({ key: accessKey.trim() }),
       });
       if (response.ok) {
-        location.replace("/goals");
+        location.replace(location.pathname);
       } else {
         setError(response.status === 403 ? "That access key did not match." : "The tracker is temporarily unavailable.");
       }

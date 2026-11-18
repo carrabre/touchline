@@ -59,3 +59,9 @@ input:not([type=checkbox]):not([type=file]),select{min-height:48px;font-size:16p
  .nav{font-size:0}.check{min-height:44px}.eventtop .check{min-height:44px}
 }
 @media(max-width:360px){.topbar{font-size:7px}.live-label{font-size:8px}.rail{padding:14px 16px}main{padding:0 16px}.brand{font-size:23px}.summary>div{flex-direction:column;align-items:flex-start;gap:4px}.summary span{max-width:none}}
+
+.match-actions > .copy-game-link { padding: 0; }
+.copy-game-link button { width: 100%; }
+.copy-game-link input { width: 100%; margin-top: 6px; }
+.unavailable-game { margin: 0 auto; max-width: 680px; padding-top: 60px; }
+.unavailable-game p { margin: 10px 0 22px; }
