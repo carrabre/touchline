@@ -19,7 +19,7 @@ export function GoalAccess() {
       if (response.ok) {
         location.replace(location.pathname);
       } else {
-        setError(response.status === 403 ? "That access key did not match." : "The tracker is temporarily unavailable.");
+        setError(response.status === 403 ? "That access key did not match." : "The leaderboard is temporarily unavailable.");
       }
     } catch {
       setError("Could not connect. Try again.");
@@ -43,15 +43,15 @@ export function GoalAccess() {
 
   return <div className="pagehead goal-heading">
     <form className="panel goal-access" onSubmit={submit}>
-      <h1>Goal tracker</h1>
-      <p>Open the private tracker with your access key.</p>
+      <h1>Stats leaderboard</h1>
+      <p>Open the private leaderboard with your access key.</p>
       <label className="field">
         Access key
         <input type="password" name="access" autoComplete="off" required maxLength={90}
           value={key} onChange={(event) => setKey(event.target.value)} disabled={busy} />
       </label>
       {error && <p role="alert">{error}</p>}
-      <button className="primary" disabled={busy} type="submit">{busy ? "Opening…" : "Open tracker"}</button>
+      <button className="primary" disabled={busy} type="submit">{busy ? "Opening…" : "Open leaderboard"}</button>
     </form>
   </div>;
 }

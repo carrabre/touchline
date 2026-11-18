@@ -6,25 +6,31 @@
 .goal-metrics > div { display: flex; align-items: baseline; gap: 11px; padding: 12px 20px; }
 .goal-metrics > div + div { border-left: 1px solid var(--border); }
 .goal-metrics strong { font-size: 28px; color: var(--lime); font-variant-numeric: tabular-nums; }
-.goal-metrics span, .goal-player small, .goal-description small, .goal-credit > small, .goal-log-help, .goal-unclear { color: var(--muted); font-size: 13px; }
+.goal-metrics span, .goal-description small, .goal-credit > small, .goal-log-help, .goal-unclear { color: var(--muted); font-size: 13px; }
 .goal-reel { background: #091016; border: 1px solid var(--border); border-radius: 11px; overflow: hidden; }
-.goal-reel-label { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; background: var(--panel); }
+.goal-reel-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 16px; background: var(--panel); }
 .goal-reel-label h2 { font-size: 16px; }
 .goal-reel-label span { font-size: 13px; color: var(--muted); }
 .goal-reel video { width: 100%; display: block; aspect-ratio: 16 / 7; }
 .goal-section { margin-top: 38px; max-width: 1050px; }
 .goal-section .sectionline { margin-bottom: 10px; }
 .goal-small { min-height: 37px; padding: 6px 11px; }
-.goal-roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(182px, 100%), 1fr)); gap: 9px; }
-.goal-player { display: flex; align-items: center; text-align: left; gap: 11px; padding: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 9px; min-width: 0; }
-.goal-player[aria-pressed=true], .goal-player:hover { border-color: var(--lime); }
-.goal-player img, .goal-person img { flex: none; object-fit: cover; object-position: center 40%; border-radius: 50%; background: var(--border); }
-.goal-player img { width: 54px; height: 54px; }
-.goal-person img { width: 32px; height: 32px; }
-.goal-player-info { min-width: 0; overflow-wrap: anywhere; }
-.goal-player-info > * { display: block; }
-.goal-player strong { font-size: 14px; }
-.goal-player small { font-size: 12px; }
+.goal-rankings { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+.goal-rankings table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.goal-rankings th, .goal-rankings td { padding: 7px 14px; text-align: left; }
+.goal-rankings thead th { font-size: 13px; color: var(--muted); font-weight: 600; }
+.goal-rankings tr > :first-child { width: 76px; text-align: center; }
+.goal-rankings tbody tr { border-top: 1px solid var(--border); }
+.goal-rankings .goal-stat { width: 116px; text-align: center; font-variant-numeric: tabular-nums; }
+.goal-rankings td.goal-stat { font-weight: 700; }
+.goal-rankings .goal-rank { color: var(--muted); font-variant-numeric: tabular-nums; }
+.goal-sort { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 36px; padding: 0 3px; border: 0; background: transparent; color: inherit; font-weight: inherit; }
+.goal-rankings th[aria-sort], .goal-sort:hover { color: var(--lime); }
+.goal-player-link { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; max-width: 100%; }
+.goal-player-link > svg { flex: none; color: var(--muted); }
+.goal-player-link:hover, .goal-player-link:hover > svg { color: var(--lime); }
+.goal-person img { flex: none; width: 32px; height: 32px; object-fit: cover; object-position: center 40%; border-radius: 50%; background: var(--border); }
+#highlight-reel, #goal-log { scroll-margin-top: 88px; }
 .goal-name-form { margin-bottom: 12px; }
 .goal-name-form > p { font-size: 14px; }
 .goal-name-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); gap: 10px 18px; margin: 14px 0 0; }
@@ -54,8 +60,11 @@
   .goal-metrics strong { font-size: 24px; }
   .goal-metrics span { font-size: 12px; }
   .goal-metrics > div { padding-inline: 9px; }
-  .goal-roster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .goal-player img { width: 38px; height: 38px; }
+  .goal-heading h1 { font-size: clamp(34px, 10vw, 44px); }
+  .goal-rankings th, .goal-rankings td { padding-inline: 6px; }
+  .goal-rankings tr > :first-child { width: 46px; }
+  .goal-rankings .goal-stat { width: 61px; }
+  .goal-player-link > svg { display: none; }
 }
 .goal-access { width: min(100%, 460px); }
 .goal-access .field { margin: 20px 0 14px; }

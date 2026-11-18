@@ -10,7 +10,7 @@ import { gameHref, REVIEWED_MATCH_ID } from "@/lib/game-paths";
 import "../tracker.css";
 
 export const metadata: Metadata = {
-  title: "Goal tracker · Touchline",
+  title: "Stats leaderboard · Touchline",
   robots: { index: false, follow: false },
 };
 
@@ -28,14 +28,14 @@ export default async function ReviewedGamePage({ params }: { params: Promise<{ i
           touchline<span className="brand-period">.</span>
         </a>
         <a className="nav" href="/" aria-label="Match library"><Film size={19} />Match library</a>
-        <a className="nav chosen" href={gameHref(id)} aria-current="page" aria-label="Goal tracker">
-          <Trophy size={19} />Goal tracker
+        <a className="nav chosen" href={gameHref(id)} aria-current="page" aria-label="Stats leaderboard">
+          <Trophy size={19} />Stats leaderboard
         </a>
       </aside>
       <main className="goal-main">
         <header className="topbar"><span>MATCH STUDIO</span></header>
         {match ? <GoalTracker match={match} /> : access ?
-          <div className="pagehead"><div><h1>Goal tracker</h1><p>The match is temporarily unavailable.</p></div></div> :
+          <div className="pagehead"><div><h1>Stats leaderboard</h1><p>The match is temporarily unavailable.</p></div></div> :
           <GoalAccess />}
         <footer>TOUCHLINE</footer>
       </main>

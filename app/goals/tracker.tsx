@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Download, Play, UserRound } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Download, Play, UserRound } from "lucide-react";
 import { CopyGameLink } from "@/app/components/copy-game-link";
 import { gameHref } from "@/lib/game-paths";
 
@@ -29,12 +29,15 @@ type ReviewedMatch = {
   replays: { number: number; title: string; sourceTime: string; outcome: "goal" | "excluded"; video: string }[];
 };
 
+const statColumns = ["goals", "assists"] as const;
+
 const storageKey = "touchline-player-names";
 
 export function GoalTracker({ match }: { match: ReviewedMatch }) {
   const video = useRef<HTMLVideoElement>(null);
   const [names, setNames] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState("");
+  const [sortBy, setSortBy] = useState<(typeof statColumns)[number]>("goals");
   const [activeGoal, setActiveGoal] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -53,11 +56,21 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
   const visible = match.goals.filter((goal) =>
     !filter || goal.scorer === filter || goal.assists.includes(filter));
   const totalAssists = match.goals.reduce((total, goal) => total + goal.assists.length, 0);
+  const tiebreaker = sortBy === "goals" ? "assists" : "goals";
   const playerStats = match.players.map((player) => ({
     ...player,
     goals: match.goals.filter((goal) => goal.scorer === player.id).length,
     assists: match.goals.filter((goal) => goal.assists.includes(player.id)).length,
-  })).sort((a, b) => b.goals - a.goals || b.assists - a.assists || a.id.localeCompare(b.id));
+  })).sort((a, b) => b[sortBy] - a[sortBy] || b[tiebreaker] - a[tiebreaker] || a.id.localeCompare(b.id));
+
+  let rank = 0;
+  const rankedPlayers = playerStats.map((player, index) => {
+    const previous = playerStats[index - 1];
+    if (!previous || previous.goals !== player.goals || previous.assists !== player.assists) {
+      rank = index + 1;
+    }
+    return { ...player, rank };
+  });
 
   function saveNames(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -96,36 +109,26 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
     <>
       <div className="pagehead goal-heading">
         <div>
-          <h1>Goal tracker</h1>
+          <h1>Stats leaderboard</h1>
           <p>{match.title} <span aria-hidden="true">·</span> {match.date}</p>
         </div>
         <div className="match-actions">
           <CopyGameLink href={gameHref(match.id)} />
-          <a className="secondary" href={match.download} download="Touchline - Indoor Soccer Highlights.mp4">
-            <Download size={17} />Download reel
-          </a>
+          <a className="secondary" href="#highlight-reel"><Play size={17} />Watch reel</a>
         </div>
       </div>
 
-      <section className="goal-overview" aria-label="Match overview">
+      <section className="goal-overview" aria-label="Match totals">
         <div className="goal-metrics">
           <div><strong>{match.goals.length}</strong><span>Goals</span></div>
           <div><strong>{totalAssists}</strong><span>Credited assists</span></div>
-          <div><strong>{match.goals.filter((goal) => goal.attribution === "likely").length}</strong><span>Provisional scorers</span></div>
-        </div>
-        <div className="goal-reel">
-          <div className="goal-reel-label">
-            <h2>Highlight reel</h2>
-            {activeGoal !== null && <span role="status">Play #{activeGoal}</span>}
-          </div>
-          <video ref={video} src={match.reel} poster={match.poster} controls playsInline preload="metadata"
-            aria-label="Indoor soccer highlight reel" tabIndex={0} />
+          <div><strong>{match.goals.filter((goal) => goal.attribution === "likely").length}</strong><span>Provisional scorer credits</span></div>
         </div>
       </section>
 
       <section className="goal-section" aria-labelledby="player-heading">
         <div className="sectionline">
-          <h2 id="player-heading">Player stats</h2>
+          <h2 id="player-heading">Player rankings</h2>
           <button className="secondary goal-small" type="button" aria-expanded={editing}
             onClick={() => { setDraft({ ...names }); setNameError(""); setEditing(!editing); }}>
             <UserRound size={16} />{editing ? "Close" : "Edit names"}
@@ -135,7 +138,7 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
           <form className="panel goal-name-form" onSubmit={saveNames}>
             <p>Names are saved in this browser. Player totals follow the profile across jersey colors.</p>
             <div className="goal-name-grid">
-              {playerStats.map((player) => (
+              {match.players.map((player) => (
                 <label key={player.id} className="field">
                   <span className="goal-person"><img src={player.photo} alt="" loading="lazy" decoding="async" width="32" height="32" />Player {player.id.slice(1)}</span>
                   <input maxLength={60} value={draft[player.id] ?? ""} placeholder={`Player ${player.id.slice(1)}`}
@@ -147,27 +150,63 @@ export function GoalTracker({ match }: { match: ReviewedMatch }) {
             <button className="primary goal-small" type="submit">Save names</button>
           </form>
         }
-        <div className="goal-roster">
-          {playerStats.map((player) => (
-            <button key={player.id} type="button" className="goal-player" aria-pressed={filter === player.id}
-              onClick={() => setFilter(filter === player.id ? "" : player.id)}>
-              <img src={player.photo} alt="" loading="lazy" decoding="async" width="54" height="54" />
-              <span className="goal-player-info">
-                <strong>{name(player.id)}</strong>
-                <small>{player.goals} {player.goals === 1 ? "goal" : "goals"} · {player.assists} {player.assists === 1 ? "assist" : "assists"}</small>
-              </span>
-            </button>
-          ))}
+        <div className="goal-rankings">
+          <table aria-labelledby="player-heading">
+            <thead>
+              <tr>
+                <th scope="col">Rank</th>
+                <th scope="col">Player</th>
+                {statColumns.map((stat) => (
+                  <th key={stat} scope="col" className="goal-stat"
+                    aria-sort={sortBy === stat ? "descending" : undefined}>
+                    <button type="button" className="goal-sort" onClick={() => setSortBy(stat)}>
+                      {stat === "goals" ? "Goals" : "Assists"}
+                      {sortBy === stat && <ArrowDown size={14} aria-hidden />}
+                    </button>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rankedPlayers.map((player) => (
+                <tr key={player.id}>
+                  <td className="goal-rank">{player.rank}</td>
+                  <th scope="row">
+                    <a className="goal-player-link" href="#goal-log" onClick={() => setFilter(player.id)}
+                      aria-label={`View plays for ${name(player.id)}`}>
+                      {playerLabel(player.id)}<ArrowUpRight size={15} aria-hidden />
+                    </a>
+                  </th>
+                  <td className="goal-stat">{player.goals}</td>
+                  <td className="goal-stat">{player.assists}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
-      <section className="goal-section" aria-labelledby="log-heading">
+      <section id="highlight-reel" className="goal-section goal-reel" aria-labelledby="reel-heading" tabIndex={-1}>
+        <div className="goal-reel-label">
+          <div>
+            <h2 id="reel-heading">Highlight reel</h2>
+            {activeGoal !== null && <span role="status">Play #{activeGoal}</span>}
+          </div>
+          <a className="secondary goal-small" href={match.download} download="Touchline - Indoor Soccer Highlights.mp4">
+            <Download size={17} />Download reel
+          </a>
+        </div>
+        <video ref={video} src={match.reel} poster={match.poster} controls playsInline preload="metadata"
+          aria-label="Indoor soccer highlight reel" tabIndex={0} />
+      </section>
+
+      <section id="goal-log" className="goal-section" aria-labelledby="log-heading" tabIndex={-1}>
         <div className="sectionline goal-log-title">
           <h2 id="log-heading">Goal log</h2>
           <label className="goal-filter">Player
             <select value={filter} onChange={(event) => setFilter(event.target.value)}>
               <option value="">All players</option>
-              {playerStats.map((player) => <option key={player.id} value={player.id}>{name(player.id)}</option>)}
+              {match.players.map((player) => <option key={player.id} value={player.id}>{name(player.id)}</option>)}
             </select>
           </label>
         </div>

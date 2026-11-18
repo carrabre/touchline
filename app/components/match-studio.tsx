@@ -42,7 +42,7 @@ export function MatchStudio({initialMatch=null}:{initialMatch?:Match|null}){
  const mediaBase=match?`/api/playback/${encodeURIComponent(match.id)}`:'';
  const current=events.find(e=>e.id===selected),included=events.filter(e=>e.included),ready=matches.filter(m=>m.status==='ready').length + 1;
  const gameCount = matches.length + 1;
- return <div className="shell"><aside className="rail"><a className="brand" href="/" onClick={e=>{e.preventDefault();go('library');}}><span className="brandmark"><img src="/favicon.svg?v=soccer-2" alt="" width={25} height={25}/></span>touchline<span className="brand-period">.</span></a><button className={'nav '+(view==='library'?'chosen':'')} onClick={()=>go('library')}><Film size={19}/>All games{view==='library'&&<span>{gameCount}</span>}</button><button className={'nav '+(view==='new'?'chosen':'')} onClick={()=>go('new')} disabled={busy||recording}><Plus size={19}/>New match</button><a className="nav" href="/goals" aria-label="Goal tracker"><Trophy size={19}/>Goal tracker</a></aside><main><header className="topbar"><span>TOUCHLINE / MATCH STUDIO</span><span className="live-label"><i/>Open to everyone</span></header>{available===false?<div className="offline" role="status"><div><b>Processing unavailable.</b><p>Try again later.</p></div></div>:null}{error?<div className="error" role="alert">{error}<button aria-label="Dismiss error" onClick={()=>setError('')}><X size={18}/></button></div>:null}
+ return <div className="shell"><aside className="rail"><a className="brand" href="/" onClick={e=>{e.preventDefault();go('library');}}><span className="brandmark"><img src="/favicon.svg?v=soccer-2" alt="" width={25} height={25}/></span>touchline<span className="brand-period">.</span></a><button className={'nav '+(view==='library'?'chosen':'')} onClick={()=>go('library')}><Film size={19}/>All games{view==='library'&&<span>{gameCount}</span>}</button><button className={'nav '+(view==='new'?'chosen':'')} onClick={()=>go('new')} disabled={busy||recording}><Plus size={19}/>New match</button><a className="nav" href="/goals" aria-label="Stats leaderboard"><Trophy size={19}/>Stats leaderboard</a></aside><main><header className="topbar"><span>TOUCHLINE / MATCH STUDIO</span><span className="live-label"><i/>Open to everyone</span></header>{available===false?<div className="offline" role="status"><div><b>Processing unavailable.</b><p>Try again later.</p></div></div>:null}{error?<div className="error" role="alert">{error}<button aria-label="Dismiss error" onClick={()=>setError('')}><X size={18}/></button></div>:null}
  {view === 'library' && <>
    <div className="pagehead">
      <div><div className="eyebrow">THE SHARED MATCH LIBRARY</div><h1>Every game.<br/><span className="headline-soft">Every goal.</span></h1></div>
@@ -82,7 +82,7 @@ export function MatchStudio({initialMatch=null}:{initialMatch?:Match|null}){
          </div>
          <div className="cardbody">
            <h3>Indoor soccer</h3>
-           <div>Highlights &amp; goal stats<span>View match<ArrowUpRight size={16}/></span></div>
+           <div>Highlights &amp; leaderboard<span>View match<ArrowUpRight size={16}/></span></div>
          </div>
        </a>
      </div>
